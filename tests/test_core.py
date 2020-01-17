@@ -758,8 +758,39 @@ def test_optional():
     assert d.parse(b"\x01\x00\x00\x00") == 1
     assert d.build(1) == b"\x01\x00\x00\x00"
     assert d.parse(b"???") == None
+    assert d.parse(b"") == None
     assert d.build(None) == b""
     assert raises(d.sizeof) == SizeofError
+
+def test_optional_in_struct_issue_747():
+    d = Struct("field" / Optional(Int32ul))
+    assert d.parse(b"\x01\x00\x00\x00") == {"field": 1}
+    assert d.build({"field": 1}) == b"\x01\x00\x00\x00"
+    assert d.parse(b"???") == {"field": None}
+    assert d.build({"field": None}) == b""
+    assert d.parse(b"") == {"field": None}
+    assert raises(d.sizeof) == SizeofError
+
+def test_optional_in_bit_struct_issue_747():
+    d = BitStruct("field" / Optional(Octet))
+    assert d.parse(b"\x01") == {"field": 1}
+    assert d.build({"field": 1}) == b"\x01"
+    assert d.parse(b"???") == {"field": ord("?")}
+    assert d.build({"field": None}) == b""
+    assert d.parse(b"") == {"field": None}
+    assert raises(d.sizeof) == SizeofError
+
+def test_select_buildfromnone_issue_747():
+    d = Struct("select" / Select(Int32ub, Default(Bytes(3), b"abc")))
+    assert d.parse(b"def") == dict(select=b"def")
+    assert d.parse(b"\x01\x02\x03\x04") == dict(select=0x01020304)
+    assert d.build(dict(select=b"def")) == b"def"
+    assert d.build(dict(select=0xbeefcace)) == b"\xbe\xef\xca\xce"
+    assert d.build(dict()) == b"abc"
+
+    d = Struct("opt" / Optional(Byte))
+    assert d.build(dict(opt=1)) == b"\x01"
+    assert d.build(dict()) == b""
 
 def test_if():
     common(If(True,  Byte), b"\x01", 1, 1)
@@ -1225,7 +1256,7 @@ def test_compressed_bzip2():
     assert len(d.build(zeros)) < 50
     assert raises(d.sizeof) == SizeofError
 
-@xfail(not PY>=(3,3), raises=ImportError, reason="lzma module was added in 3.3")
+@xfail(not PY>=(3,3) or PYPY, raises=ImportError, reason="lzma module was added in 3.3")
 def test_compressed_lzma():
     zeros = bytes(10000)
     d = Compressed(GreedyBytes, "lzma")
@@ -1660,6 +1691,24 @@ def test_from_issue_362():
         assert FORMAT.parse(b'\x00').my_tell == 0
     for i in range(5):
         assert BIT_FORMAT.parse(b'\x00').my_tell == 0
+
+@xfail(raises=AttributeError, reason="can't access Enums inside BitStruct")
+def test_from_issue_781():
+    d = Struct(
+        "animal" / Enum(Byte, giraffe=1),
+    )
+
+    x = d.parse(b"\x01")
+    assert x.animal == "giraffe"  # works
+    assert x.animal == d.animal.giraffe  # works
+
+    d = BitStruct(
+        "animal" / Enum(BitsInteger(8), giraffe=1),
+    )
+
+    x = d.parse(b"\x01")
+    assert x.animal == "giraffe"  # works
+    assert x.animal == d.animal.giraffe  # AttributeError: 'Transformed' object has no attribute 'animal'
 
 def test_this_expresion_compare_container():
     st = Struct(

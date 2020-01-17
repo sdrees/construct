@@ -27,6 +27,8 @@ All constructs: added `parsed` hook/callback (`see tutorial page <https://constr
 
 Compiled added (used internally)
 
+Half was added alongside Single, Double
+
 String* require explicit encodings, all of them support UTF16 UTF32 encodings, but PaddedString CString dropped some parameters and support only encodings explicitly listed in `possiblestringencodings` (`see tutorial page <https://construct.readthedocs.io/en/latest/advanced.html#strings>`_)
 
 PaddedString CString classes reimplemented using NullTerminated NullStripped
@@ -70,6 +72,8 @@ Timestamp added, in Miscellaneous (`see tutorial page <https://construct.readthe
 Hex HexDump reimplemented, return bytes and not hexlified strings (`see tutorial page <https://construct.readthedocs.io/en/latest/misc.html#hex-and-hexdump>`_)
 
 Select dropped `includename` parameter (`see API page <https://construct.readthedocs.io/en/latest/api/conditional.html#construct.Select>`_)
+
+Select allows to build from none if any of its subcons can
 
 If IfThenElse parameter `predicate` renamed to `condfunc`, and cannot be embedded (`see API page <https://construct.readthedocs.io/en/latest/api/conditional.html#construct.If>`_)
 

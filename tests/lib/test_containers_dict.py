@@ -159,11 +159,24 @@ def test_pickling():
     nested_unpickled = pickle.loads(pickle.dumps(nested))
     assert nested_unpickled == nested
 
-def test_eq():
+def test_eq_issue_818():
     c = Container(a=1)(b=2)(c=3)(d=4)(e=5)
     d = Container(a=1)(b=2)(c=3)(d=4)(e=5)
     assert c == c
+    assert d == d
     assert c == d
+    assert d == c
+
+    a = Container(a=1)(b=2)
+    b = Container(a=1)(b=2)(c=3)
+    assert not a == b
+    assert not b == a
+
+    # c contains internal '_io' field, which shouldn't be considered in the comparison
+    c = Struct('a' / Int8ul).parse(b'\x01')
+    d = {'a': 1}
+    assert c == d
+    assert d == c
 
 @xfail(not supportsnumpy, reason="numpy is not installed?")
 def test_eq_numpy():
@@ -172,7 +185,7 @@ def test_eq_numpy():
     d = Container(arr=numpy.zeros(10, dtype=numpy.uint8))
     assert c == d
 
-def test_ne():
+def test_ne_issue_818():
     c = Container(a=1)(b=2)(c=3)
     d = Container(a=1)(b=2)(c=3)(d=4)(e=5)
     assert c != d

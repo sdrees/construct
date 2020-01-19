@@ -4,7 +4,6 @@ from declarativeunittest import *
 from construct import *
 from construct.lib import *
 
-
 def test_bytes():
     d = Bytes(4)
     common(d, b"1234", b"1234", 4)
@@ -1934,17 +1933,17 @@ def test_struct_stream():
             Check(lambda this: not stream_iseof(this._._io)),
         )),
         # checks mid-parsing
-        Check(lambda this: stream_tell(this._io) == 10),
+        Check(lambda this: stream_tell(this._io, None) == 10),
         Check(lambda this: stream_size(this._io) == 20),
         Check(lambda this: not stream_iseof(this._io)),
         'rest' / GreedyBytes,
         # checks after parsed to EOF
-        Check(lambda this: stream_tell(this._io) == 20),
+        Check(lambda this: stream_tell(this._io, None) == 20),
         Check(lambda this: stream_size(this._io) == 20),
         Check(lambda this: stream_iseof(this._io)),
-        Check(lambda this: stream_seek(this._io, 0, 2) == 20),
+        Check(lambda this: stream_seek(this._io, 0, 2, None) == 20),
         # checks nested struct stream
-        Check(lambda this: stream_tell(this.fixed._io) == 10),
+        Check(lambda this: stream_tell(this.fixed._io, None) == 10),
         Check(lambda this: stream_size(this.fixed._io) == 10),
     )
     d.parse(bytes(20))
@@ -2129,3 +2128,15 @@ def test_hex_issue_709():
     d = Struct("x" / Struct("y" / Hex(Bytes(1))))
     obj = d.parse(b"\xff")
     assert "y = unhexlify('ff')" in str(obj)
+
+
+@xfail(reason="Enable to see path information in stream operations")
+def test_showpath():
+    # trips stream_read
+    d = Struct("inner"/Struct("x"/Byte))
+    d.parse(b"")
+
+def test_buildfile_issue_737():
+    Byte.build_file(Byte.parse(b'\xff'), 'out')
+    assert Byte.parse_file('out') == 255
+

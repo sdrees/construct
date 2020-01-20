@@ -72,8 +72,6 @@ __all__ = [
     'Debugger',
     'Default',
     'Double',
-    'Embedded',
-    'EmbeddedSwitch',
     'Enum',
     'EnumInteger',
     'EnumIntegerString',

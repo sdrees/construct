@@ -5,16 +5,6 @@ from construct import *
 from construct.lib import *
 
 
-embeddedswitch1 = EmbeddedSwitch(
-    Struct(
-        "type" / Byte,
-    ),
-    this.type,
-    {
-        0: Struct("name" / PascalString(Byte, "utf8")),
-        1: Struct("value" / Byte),
-    }
-)
 example = Struct(
     "num" / Byte,
 
@@ -62,11 +52,8 @@ example = Struct(
     "mapping" / Mapping(Byte, {"zero":0}),
 
     "struct" / Struct("field" / Byte),
-    "embeddedstruct" / Embedded(Struct("embeddedfield1" / Byte)),
     "sequence1" / Sequence(Byte, Byte),
     "sequence2" / Sequence("num1" / Byte, "num2" / Byte),
-    "embeddedsequence1" / Sequence(Embedded(Sequence(Byte, Byte))),
-    "embeddedsequence2" / Sequence(Embedded(Sequence("num1" / Byte, "num2" / Byte))),
 
     "array1" / Array(5, Byte),
     "array2" / Array(this.num, Byte),
@@ -107,7 +94,6 @@ example = Struct(
     "union2" / Union(1, "char"/Byte, "short"/Short, "int"/Int),
     "union3" / Union(0, "char1"/Byte, "char2"/Byte, "char3"/Byte),
     "union4" / Union("char1", "char1"/Byte, "char2"/Byte, "char3"/Byte),
-    "unionembedded" / Union(None, Embedded(Struct("char"/Byte))),
     "select" / Select(Byte, CString("ascii")),
     "optional" / Optional(Byte),
     "if1" / If(this.num == 0, Byte),
@@ -115,7 +101,6 @@ example = Struct(
     "switch1" / Switch(this.num, {0 : Byte, 255 : Error}),
     "switch2" / Switch(this.num, {}),
     "switch3" / Switch(this.num, {}, default=Byte),
-    "embeddedswitch1" / embeddedswitch1,
     "stopif0" / StopIf(this.num == 255),
     "stopif1" / Struct(StopIf(this._.num == 0), Error),
     "stopif2" / Sequence(StopIf(this._.num == 0), Error),

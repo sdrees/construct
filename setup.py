@@ -16,6 +16,7 @@ setup(
     url = "http://construct.readthedocs.org",
     author = "Arkadiusz Bulski, Tomer Filiba, Corbin Simpson",
     author_email = "arek.bulski@gmail.com, tomerfiliba@gmail.com, MostAwesomeDude@gmail.com",
+    python_requires = ">=3.6",
     install_requires = [],
     extras_require = {
         "extras": [
@@ -49,10 +50,7 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Software Development :: Build Tools",
         "Topic :: Software Development :: Code Generators",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",

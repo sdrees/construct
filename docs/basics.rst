@@ -148,6 +148,31 @@ Container:
 It used to be that structs could have been embedded (flattened out). However, this created more problems than it solved so this feature was recently removed. Since Construct 2.10 its no longer possible to embed structs. You should, and always should have been, be nesting them just like in the example above.
 
 
+Showing path information in exceptions
+----------------------------------------
+
+If your construct throws an exception, for any reason, there should be a "path information" attached to it. In the example below, the "(parsing) -> a -> b -> c -> foo" field throws an exception due to lack of bytes to consume. You can see that in the exception message.
+
+::
+
+    >>> x = Struct(
+    ...     'foo' / Bytes(1),
+    ...     'a' / Struct(
+    ...         'foo' / Bytes(1),
+    ...         'b' / Struct(
+    ...             'foo' / Bytes(1),
+    ...             'c' / Struct(
+    ...                 'foo' / Bytes(1),
+    ...                 'bar' / Bytes(1)
+    ...             )
+    ...         )
+    ...     )
+    ... )
+    >>> x.parse(b'\xff' * 3)
+    construct.core.StreamError: Error in path (parsing) -> a -> b -> c -> foo
+    stream read less than specified amount, expected 1, found 0
+
+
 Hidden context entries
 ----------------------
 
@@ -175,24 +200,28 @@ There are few additional, hidden entries in the context. They are mostly used in
             z = 2
             _parsing = True
             _building = False
+            _sizing = False
             _params = <recursion detected>
         _params = Container: 
             z = 2
             _parsing = True
             _building = False
+            _sizing = False
             _params = <recursion detected>
         _root = <recursion detected>
         _parsing = True
         _building = False
+        _sizing = False
         _subcons = Container: 
             x = <Renamed x +nonbuild <Computed +nonbuild>>
             inner = <Renamed inner +nonbuild <Struct +nonbuild>>
-        _io = <_io.BytesIO object at 0x7fa29d7f9938>
+        _io = <_io.BytesIO object at 0x7fd91e7313b8>
+        _index = None
         x = 1
         inner = Container: 
-            _io = <_io.BytesIO object at 0x7fa29d7f9938>
+            _io = <_io.BytesIO object at 0x7fd91e7313b8>
             inner2 = Container: 
-                _io = <_io.BytesIO object at 0x7fa29d7f9938>
+                _io = <_io.BytesIO object at 0x7fd91e7313b8>
                 x = 1
                 z = 2
                 zz = 2
@@ -205,9 +234,10 @@ Explanation as follows:
 * `_` means up-level in the context stack, every Struct does context nesting
 * `_params` is the level on which externally provided values reside, those passed as parse() keyword arguments
 * `_root` is the outer-most Struct, this entry might not exist if you do not use Structs
-* `_parsing _building` are boolean values that are set by `parse build sizeof` public API methods
+* `_parsing _building _sizing` are boolean values that are set by `parse build sizeof` public API methods
 * `_subcons` is a list of Construct instances, this Struct members
 * `_io` is a memory-stream or file-stream or whatever was provided to `parse_stream` public API method
+* `_index` is an indexing number used eg. in Arrays
 * (parsed members are also added under matching names)
 
 

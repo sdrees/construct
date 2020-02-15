@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import struct, io, binascii, itertools, collections, pickle, sys, os, tempfile, hashlib, importlib, imp
+import struct, io, binascii, itertools, collections, pickle, sys, os, tempfile, hashlib, importlib
 
 from construct.lib import *
 from construct.expr import *
@@ -305,7 +305,7 @@ class Construct(object):
         r"""
         Parse a closed binary file. See parse().
         """
-        with io.open(filename, 'rb') as f:
+        with open(filename, 'rb') as f:
             return self.parse_stream(f, **contextkw)
 
     def _parsereport(self, stream, context, path):
@@ -351,7 +351,7 @@ class Construct(object):
         r"""
         Build an object into a closed binary file. See build().
         """
-        with io.open(filename, 'wb') as f:
+        with open(filename, 'wb') as f:
             self.build_stream(obj, f, **contextkw)
 
     def _build(self, obj, stream, context, path):
@@ -439,7 +439,8 @@ class Construct(object):
                 f.write(source)
 
         modulename = hexlify(hashlib.sha1(source.encode()).digest()).decode()
-        module = imp.new_module(modulename)
+        module_spec = importlib.machinery.ModuleSpec(modulename, None)
+        module = importlib.util.module_from_spec(module_spec)
         c = compile(source, '', 'exec')
         exec(c, module.__dict__)
 
@@ -886,7 +887,7 @@ class GreedyBytes(Construct):
     def _build(self, obj, stream, context, path):
         data = bytes(obj) if type(obj) is bytearray else obj
         stream_write(stream, data, len(data), path)
-        return obj
+        return data
 
     def _emitparse(self, code):
         return "io.read()"
@@ -987,7 +988,7 @@ class FormatField(Construct):
     Parses into an integer. Builds from an integer into specified byte count and endianness. Size is determined by `struct` module according to specified format string.
 
     :param endianity: string, character like: < > =
-    :param format: string, character like: f d B H L Q b h l q
+    :param format: string, character like: f d B H L Q b h l q e
 
     :raises StreamError: requested reading negative amount, could not read enough bytes, requested writing different amount than actual data, or could not write all bytes
     :raises FormatFieldError: wrong format string, or struct.(un)pack complained about the value
@@ -1012,9 +1013,8 @@ class FormatField(Construct):
 
         super(FormatField, self).__init__()
         self.fmtstr = endianity+format
-        if format != 'e' or supportshalffloats:
-            self.length = struct.calcsize(endianity+format)
-            self.packer = struct.Struct(endianity+format)
+        self.length = struct.calcsize(endianity+format)
+        self.packer = struct.Struct(endianity+format)
 
     def _parse(self, stream, context, path):
         data = stream_read(stream, self.length, path)
@@ -2960,7 +2960,7 @@ class Numpy(Construct):
     Parses using `numpy.load() <https://docs.scipy.org/doc/numpy/reference/generated/numpy.load.html#numpy.load>`_ and builds using `numpy.save() <https://docs.scipy.org/doc/numpy/reference/generated/numpy.save.html#numpy.save>`_ functions, using Numpy binary protocol. Size is undefined.
 
     :raises ImportError: numpy could not be imported during parsing or building
-    :raises StreamError: requested reading negative amount, could not read enough bytes, requested writing different amount than actual data, or could not write all bytes
+    :raises ValueError: could not read enough bytes, or so
 
     Can propagate numpy.load() and numpy.save() exceptions.
 

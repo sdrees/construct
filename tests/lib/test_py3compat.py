@@ -2,9 +2,6 @@ from declarativeunittest import *
 from construct.lib.py3compat import *
 
 
-def test_version():
-    assert PY2 or PY3
-
 def test_int_byte():
     assert int2byte(5) == b"\x05"
     assert int2byte(255) == b"\xff"
@@ -18,12 +15,6 @@ def test_str_bytes():
     assert bytes2str(str2bytes("abc123\n")) == "abc123\n"
     assert str2bytes(bytes2str(b"abc123\n")) == b"abc123\n"
 
-def test_str_unicode():
-    assert str2unicode("abc") == u"abc"
-    assert unicode2str(u"abc") == "abc"
-    assert unicode2str(str2unicode("abc123\n")) == "abc123\n"
-    assert str2unicode(unicode2str(u"abc123\n")) == "abc123\n"
-
 def test_iteratebytes():
     assert list(iteratebytes(b"abc")) == [b"a", b"b", b"c"]
     assert all(list(iteratebytes(int2byte(i))) == [int2byte(i)] for i in range(256))
@@ -36,6 +27,7 @@ def test_bytes():
     assert bytes() == b''
     assert bytes(2) == b'\x00\x00'
     assert bytes([1,2]) == b'\x01\x02'
+    assert bytes((1,)) == b'\x01'
 
 def test_bytes_integers():
     assert bytes2integers(b'abc')[0] == 97

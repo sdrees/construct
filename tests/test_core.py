@@ -86,7 +86,6 @@ def test_ints24():
     common(Int24sb, b"\xff\xff\xff", -1, 3)
     common(Int24sl, b"\xff\xff\xff", -1, 3)
 
-@xfail(not supportshalffloats, reason="Half-precision floats were introduced in 3.6")
 def test_halffloats():
     common(Half, b"\x00\x00", 0., 2)
     common(Half, b"\x35\x55", 0.333251953125, 2)
@@ -247,7 +246,6 @@ def test_enum():
     assert raises(d.build, "unknown") == MappingError
     assert raises(lambda: d.missing) == AttributeError
 
-@xfail(not supportsintenum, raises=AttributeError, reason="IntEnum introduced in 3.4, IntFlag introduced in 3.6")
 def test_enum_enum34():
     import enum
     class E(enum.IntEnum):
@@ -257,7 +255,6 @@ def test_enum_enum34():
     common(Enum(Byte, E, F), b"\x01", "a", 1)
     common(Enum(Byte, E, F), b"\x02", "b", 1)
 
-@xfail(not supportsintflag, raises=AttributeError, reason="IntEnum introduced in 3.4, IntFlag introduced in 3.6")
 def test_enum_enum36():
     import enum
     class E(enum.IntEnum):
@@ -326,7 +323,6 @@ def test_flagsenum():
     assert d.one|d.two == "one|two"
     assert raises(lambda: d.missing) == AttributeError
 
-@xfail(not supportsintenum, raises=AttributeError, reason="IntEnum introduced in 3.4, IntFlag introduced in 3.6")
 def test_flagsenum_enum34():
     import enum
     class E(enum.IntEnum):
@@ -337,7 +333,6 @@ def test_flagsenum_enum34():
     common(FlagsEnum(Byte, E, F), b"\x02", Container(_flagsenum=True)(a=False,b=True), 1)
     common(FlagsEnum(Byte, E, F), b"\x03", Container(_flagsenum=True)(a=True,b=True), 1)
 
-@xfail(not supportsintflag, raises=AttributeError, reason="IntEnum introduced in 3.4, IntFlag introduced in 3.6")
 def test_flagsenum_enum36():
     import enum
     class E(enum.IntEnum):
@@ -367,7 +362,6 @@ def test_struct_nested():
     d = Struct("a"/Byte, "b"/Int16ub, "inner"/Struct("c"/Byte, "d"/Byte))
     common(d, b"\x01\x00\x02\x03\x04", Container(a=1,b=2,inner=Container(c=3,d=4)), 5)
 
-@xfail(not supportskwordered, reason="ordered kw was introduced in 3.6")
 def test_struct_kwctor():
     d = Struct(a=Byte, b=Byte, c=Byte, d=Byte)
     common(d, b"\x01\x02\x03\x04", Container(a=1,b=2,c=3,d=4), 4)
@@ -580,11 +574,15 @@ def test_pickled():
     data = pickle.dumps(obj)
     common(Pickled, data, obj)
 
-@xfail(not supportsnumpy, raises=ImportError, reason="numpy not installed?")
 def test_numpy():
     import numpy
     obj = numpy.array([1,2,3], dtype=numpy.int64)
     assert numpy.array_equal(Numpy.parse(Numpy.build(obj)), obj)
+
+@xfail(reason="docs stated that it throws StreamError, not true at all")
+def test_numpy_error():
+    import numpy, io
+    numpy.load(io.BytesIO(b""))
 
 def test_namedtuple():
     coord = collections.namedtuple("coord", "x y z")
@@ -691,7 +689,6 @@ def test_union():
     # regression check, so first subcon is not parsefrom by accident
     assert raises(Union, Byte, VarInt) == UnionError
 
-@xfail(not supportskwordered, reason="ordered kw was introduced in 3.6")
 def test_union_kwctor():
     d = Union(None, a=Int8ub, b=Int16ub, c=Int32ub)
     assert d.parse(b"\x01\x02\x03\x04") == Container(a=0x01,b=0x0102,c=0x01020304)
@@ -713,7 +710,6 @@ def test_select():
     assert raises(Select(Int32ub, Int16ub).parse, b"") == SelectError
     assert raises(Select(Byte).sizeof) == SizeofError
 
-@xfail(not supportskwordered, reason="ordered kw was introduced in 3.6")
 def test_select_kwctor():
     d = Select(a=Int8ub, b=Int16ub, c=Int32ub)
     assert d.parse(b"\x01\x02\x03\x04") == 0x01
@@ -1172,7 +1168,6 @@ def test_compressed_zlib():
     assert len(d.build(zeros)) < 50
     assert raises(d.sizeof) == SizeofError
 
-@xfail(not PY>=(3,2), raises=AttributeError, reason="gzip module was added in 3.2")
 def test_compressed_gzip():
     zeros = bytes(10000)
     d = Compressed(GreedyBytes, "gzip")
@@ -1195,7 +1190,7 @@ def test_compressed_bzip2():
     assert len(d.build(zeros)) < 50
     assert raises(d.sizeof) == SizeofError
 
-@xfail(not PY>=(3,3) or PYPY, raises=ImportError, reason="lzma module was added in 3.3")
+@xfail(PYPY, raises=ImportError, reason="lzma module was added in 3.3 but fails on pypy 3.5")
 def test_compressed_lzma():
     zeros = bytes(10000)
     d = Compressed(GreedyBytes, "lzma")
@@ -1917,7 +1912,6 @@ def test_parsedhook_repeatersdiscard():
     assert d.parse(b"\x01\x02\x03") == []
     assert outputs == [1,2,3]
 
-@xfail(not supportsksyexport, reason="KSY exporter requires yaml and unicode strings")
 def test_exportksy():
     d = Struct(
         "nothing" / Pass * "field docstring",
@@ -2055,7 +2049,6 @@ def test_hex_issue_709():
     obj = d.parse(b"\xff")
     assert "y = unhexlify('ff')" in str(obj)
 
-
 @xfail(reason="Enable to see path information in stream operations")
 def test_showpath():
     # trips stream_read
@@ -2085,4 +2078,19 @@ def test_showpath2():
 def test_buildfile_issue_737():
     Byte.build_file(Byte.parse(b'\xff'), 'out')
     assert Byte.parse_file('out') == 255
+
+@xfail(reason="Context is not properly processed, see #771 and PR #784")
+def test_struct_issue_771():
+    spec = Struct(
+        'a' / Int32ul,
+        'b' / Struct(
+            'count' / Int32ul,
+            'entries' / Byte[this.count]
+        )
+    )
+    data = b'\x01\x00\x00\x00\x02\x00\x00\x00\x0a\x0b'
+    info = spec.parse(data)
+    assert info == {'a': 1, 'b': {'count': 2, 'entries': [0x0a, 0x0b]}}
+    assert spec.build(info) == data
+    assert spec.sizeof(**info) == 10
 

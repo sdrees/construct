@@ -132,10 +132,22 @@ def test_formatfield_floats_randomized():
             if not math.isnan(d.parse(b)):
                 assert d.build(d.parse(b)) == b
 
+def test_formatfield_bool_issue_901():
+    d = FormatField(">","?")
+    assert d.parse(b"\x01") == True
+    assert d.parse(b"\xff") == True
+    assert d.parse(b"\x00") == False
+    assert d.build(True) == b"\x01"
+    assert d.build(False) == b"\x00"
+    assert d.sizeof() == 1
+
 def test_bytesinteger():
     d = BytesInteger(4, signed=True, swapped=False)
     common(d, b"\x01\x02\x03\x04", 0x01020304, 4)
     common(d, b"\xff\xff\xff\xff", -1, 4)
+    d = BytesInteger(4, signed=False, swapped=this.swapped)
+    common(d, b"\x01\x02\x03\x04", 0x01020304, 4, swapped=False)
+    common(d, b"\x04\x03\x02\x01", 0x01020304, 4, swapped=True)
     assert raises(BytesInteger(this.missing).sizeof) == SizeofError
     assert raises(BytesInteger(4, signed=False).build, -1) == IntegerError
     common(BytesInteger(0), b"", 0, 0)
@@ -147,6 +159,9 @@ def test_bitsinteger():
     common(d, b"\x01\x01\x01\x01\x01\x01\x01\x01", -1, 8)
     d = BitsInteger(16, swapped=True)
     common(d, b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01\x01\x01", 0xff00, 16)
+    d = BitsInteger(16, swapped=this.swapped)
+    common(d, b"\x01\x01\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00", 0xff00, 16, swapped=False)
+    common(d, b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01\x01\x01", 0xff00, 16, swapped=True)
     assert raises(BitsInteger(this.missing).sizeof) == SizeofError
     assert raises(BitsInteger(8, signed=False).build, -1) == IntegerError
     common(BitsInteger(0), b"", 0, 0)
@@ -164,6 +179,23 @@ def test_varint():
 def test_varint_issue_705():
     d = Struct('namelen' / VarInt, 'name' / Bytes(this.namelen))
     d.build(Container(namelen = 400, name = bytes(400)))
+
+def test_zigzag():
+    d = ZigZag
+    assert d.parse(b"\x00") == 0
+    assert d.parse(b"\x05") == -3
+    assert d.parse(b"\x06") == 3
+    assert d.build(0) == b"\x00"
+    assert d.build(-3) == b"\x05"
+    assert d.build(3) == b"\x06"
+    assert raises(d.parse, b"") == StreamError
+    assert raises(d.build, None) == IntegerError
+    assert raises(d.sizeof) == SizeofError
+
+def test_zigzag_regression():
+    d = ZigZag
+    assert isinstance(d.parse(b"\x05"), integertypes)
+    assert isinstance(d.parse(b"\x06"), integertypes)
 
 def test_paddedstring():
     common(PaddedString(10, "utf8"), b"hello\x00\x00\x00\x00\x00", u"hello", 10)
@@ -930,6 +962,13 @@ def test_rawcopy_issue_358():
     d = Struct("a"/RawCopy(Byte), "check"/Check(this.a.value == 255))
     assert d.build(dict(a=dict(value=255))) == b"\xff"
 
+def test_rawcopy_issue_888():
+    # If you use build_file() on a RawCopy that has only a value defined, then
+    # RawCopy._build may also attempt to read from the file, which won't work
+    # if build_file opened the file for writing only.
+    d = RawCopy(Byte)
+    d.build_file(dict(value=0), filename="example_888")
+
 def test_byteswapped():
     d = ByteSwapped(Bytes(5))
     common(d, b"12345", b"54321", 5)
@@ -1233,7 +1272,6 @@ def test_compressed_bzip2():
     assert len(d.build(zeros)) < 50
     assert raises(d.sizeof) == SizeofError
 
-@xfail(PYPY, raises=ImportError, reason="lzma module was added in 3.3 but fails on pypy 3.5")
 def test_compressed_lzma():
     zeros = bytes(10000)
     d = Compressed(GreedyBytes, "lzma")
@@ -1250,6 +1288,13 @@ def test_compressed_prefixed():
     d = Prefixed(VarInt, Compressed(GreedyBytes, "zlib"))
     st = Struct("one"/d, "two"/d)
     assert st.parse(st.build(Container(one=zeros,two=zeros))) == Container(one=zeros,two=zeros)
+    assert raises(d.sizeof) == SizeofError
+
+def test_compressedlz4():
+    zeros = bytes(10000)
+    d = CompressedLZ4(GreedyBytes)
+    assert d.parse(d.build(zeros)) == zeros
+    assert len(d.build(zeros)) < 100
     assert raises(d.sizeof) == SizeofError
 
 def test_rebuffered():
@@ -1545,13 +1590,13 @@ def test_from_issue_71():
     payload = Inner.build(Container(
         name=u"unknown",
         occupation=u"worker",
-        ))
+    ))
     Outer.build(Container(
         struct_type=9001,
         payload_len=len(payload),
         payload=Container(data=payload),
         serial=12345,
-        ))
+    ))
 
 def test_from_issue_231():
     u = Union(0, "raw"/Byte[8], "ints"/Int[2])
@@ -1681,49 +1726,49 @@ def test_this_expresion_compare_container():
     )
     common(st, b"\x01", dict(flags=Container(_flagsenum=True)(a=True)), 1)
 
-@xfail(reason="unknown causes")
 def test_pickling_constructs():
-    # it seems there are few problems:
-    # - singletons still dont pickle (_pickle.PicklingError: Can't pickle <class 'construct.core.GreedyBytes'>: it's not the same object as construct.core.GreedyBytes)
-    # - this expressions, ExprMixin added __get(set)state__
-    # - FormatField uses a packer that needs to be re-created
-    # what was fixed so far:
-    # - singleton decorator adds __reduce__ to instance
-
-    import pickle
+    import cloudpickle
 
     d = Struct(
-        # - singletons still dont pickle
         "count" / Byte,
-        # - singletons still dont pickle
         "greedybytes" / Prefixed(Byte, GreedyBytes),
         "formatfield" / FormatField("=","Q"),
         "bytesinteger" / BytesInteger(1),
-        # - singletons still dont pickle
         "varint" / VarInt,
         "text1" / PascalString(Byte, "utf8"),
         "text2" / CString("utf8"),
         "enum" / Enum(Byte, zero=0),
         "flagsenum" / FlagsEnum(Byte, zero=0),
         "array1" / Byte[5],
-        # - uses this-expression
-        # "array2" / Byte[this.count],
+        "array2" / Byte[this.count],
         "greedyrange" / Prefixed(Byte, GreedyRange(Byte)),
-        # - its a macro around Switch, should reimplement
-        # "if1" / IfThenElse(True, Byte, Byte),
+        "if1" / IfThenElse(True, Byte, Byte),
         "padding" / Padding(1),
         "peek" / Peek(Byte),
-        # - singletons still dont pickle
         "tell" / Tell,
-        # - unknown causes
-        # "this1" / Byte[this.count],
-        # "obj_1" / RepeatUntil(obj_ == 0, Byte),
-        # "len_1" / Computed(len_(this.array1)),
+        "this1" / Byte[this.count],
+        "obj_1" / RepeatUntil(obj_ == 0, Byte),
+        "len_1" / Computed(len_(this.array1)),
     )
     data = bytes(100)
 
-    du = pickle.loads(pickle.dumps(d, protocol=-1))
+    du = cloudpickle.loads(cloudpickle.dumps(d, protocol=-1))
     assert du.parse(data) == d.parse(data)
+
+def test_pickling_constructs_issue_894():
+    import cloudpickle
+
+    fundus_header = Struct(
+        'width' / Int32un,
+        'height' / Int32un,
+        'bits_per_pixel' / Int32un,
+        'number_slices' / Int32un,
+        'unknown' / PaddedString(4, 'ascii'),
+        'size' / Int32un,
+        'img' / Int8un,
+    )
+
+    cloudpickle.dumps(fundus_header)
 
 def test_exposing_members_attributes():
     d = Struct(

@@ -8,6 +8,8 @@ Obtaining raw bytes
 
 When some value needs to be processed as both a parsed object and its raw bytes representation, both of these can be obtained using RawCopy. You can build from either the object or raw bytes as well. Dict also happen to contain the stream offsets, if you need to know at which position it resides in the stream or if you need to know its size in bytes.
 
+When building, if both the "value" and "data" keys are present, then the "data" key is used and the "value" key is ignored. This is undesirable in the case that you parse some data for the purpose of modifying it and writing it back; in this case, delete the "data" key when modifying the "value" key to correctly rebuild the former.
+
 >>> d = RawCopy(Byte)
 >>> d.parse(b"\xff")
 Container(data=b'\xff', value=255, offset1=0, offset2=1, length=1)
@@ -38,11 +40,20 @@ b'\x00\x00\x00\x00\x00\x00\x00\x01'
 >>> d.parse(b"\x01")
 b'\x01\x00\x00\x00\x00\x00\x00\x00'
 
+In case that endianness is determined at parse/build time, you can pass endianness (`swapped` parameter) by the context:
+
+>>> d = BytesInteger(2, swapped=this.swapped)
+>>> d.build(1, swapped=True)
+b'\x01\x00'
+>>> d = BitsInteger(16, swapped=this.swapped)
+>>> d.build(1, swapped=True)
+b'\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+
 
 Working with bytes subsets
 --------------------------------------------
 
-Greedy* constructs consume as much data as possible. This is convenient when building from a list of unknown length but becomes a problem when parsing it back and the list needs to be separated from following data. This can be achieved either by prepending a byte count (see Prefixed) or by prepending an element count (see PrefixedArray):
+Greedy* constructs consume as much data as possible, they read until EOF. This is convenient when building from a list of unknown length but becomes a problem when parsing it back and the list needs to be separated from following data. This can be achieved either by prepending a byte count (see Prefixed) or by prepending an element count (see PrefixedArray):
 
 VarInt encoding is recommended because it is both compact and never overflows. Also and optionally, the length field can include its own size. If so, length field must be of fixed size.
 
@@ -208,8 +219,18 @@ Data can be easily checksummed. Note that checksum field does not need to be Byt
     d.build(dict(fields=dict(value={})))
 
 
-Data can also be easily compressed. Supported encodings include zlib/gzip/bzip2/lzma and entire codecs module. When parsing, entire stream is consumed. When building, puts compressed bytes without marking the end. This construct should be used with :class:`~construct.core.Prefixed` or entire stream.
+Data can also be easily compressed. Supported encodings include zlib/gzip/bzip2/lzma and entire codecs module. When parsing, entire stream is consumed. When building, it puts compressed bytes without marking the end. This construct should be used with :class:`~construct.core.Prefixed` or entire stream.
 
 >>> d = Prefixed(VarInt, Compressed(GreedyBytes, "zlib"))
 >>> d.build(bytes(100))
 b'\x0cx\x9cc`\xa0=\x00\x00\x00d\x00\x01'
+>>> len(_)
+13
+
+LZ4 compression is also supported. It provides less compaction but does it at higher throughputs. This class is also supposed to be used with Prefixed class.
+
+>>> d = Prefixed(VarInt, CompressedLZ4(GreedyBytes))
+>>> d.build(bytes(100))
+b'"\x04"M\x18h@d\x00\x00\x00\x00\x00\x00\x00#\x0b\x00\x00\x00\x1f\x00\x01\x00KP\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+>>> len(_)
+35

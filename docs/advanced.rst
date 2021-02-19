@@ -21,25 +21,33 @@ Few fields have aliases, Byte among integers and Single among floats.
     Short   <-->  Int16ub
     Int     <-->  Int32ub
     Long    <-->  Int64ub
-    Half    <-->  Float16b (Python 3.6 and above only)
+    Half    <-->  Float16b
     Single  <-->  Float32b
     Double  <-->  Float64b
 
 Integers can also be variable-length encoded for compactness. Google invented a popular encoding:
 
+>>> VarInt.build(127)
+b'\x7f'
 >>> VarInt.build(1234567890)
 b'\xd2\x85\xd8\xcc\x04'
 
-Long integers (or those of particularly odd sizes) can be encoded using a fixed-sized `BytesInteger`. Here is a 128-bit integer.
+Signed integers can also be variable-length encoded using an encoding similar to VarInt. Also from Google:
+
+>>> ZigZag.build(-3)
+b'\x05'
+>>> ZigZag.build(3)
+b'\x06'
+
+Long integers (or those of particularly odd sizes) can be encoded using a `BytesInteger`. Here is a 128-bit integer.
 
 >>> BytesInteger(16).build(255)
 b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff'
 
 Some numerical classes are implemented using `struct` module, others use BytesInteger field.
 
->>> FormatField("<","l").build(1)
-b'\x01\x00\x00\x00'
->>> BytesInteger(4, swapped=True).build(1)
+>>> d = FormatField("<","l") or BytesInteger(4, swapped=True)
+>>> d.build(1)
 b'\x01\x00\x00\x00'
 
 
@@ -47,8 +55,6 @@ Bytes and bits
 ==============
 
 .. warning::
-
-    Python 3 known problem:
 
     Unprefixed string literals like "data" are on Python 3 interpreted as unicode. This causes failures when using fields like `Bytes`.
 
@@ -73,12 +79,6 @@ b'12345'
 
 Strings
 ========
-
-.. warning::
-
-    Python 2 known problem:
-
-    Unprefixed string literals like "text" are on Python 2 interpreted as bytes. This causes failures when using fields that operate on unicode objects only like String* classes.
 
 .. note::
 
@@ -177,8 +177,6 @@ Processing files
 ===========================
 
 .. warning::
-
-    Python 3 known problem:
 
     Opening a file without mode like ``open(filename)`` implies text mode, which cannot be parsed or build.
 

@@ -57,14 +57,14 @@ See more examples in `current gallery <https://github.com/construct/construct/tr
 
 Development and support
 -------------------------
-Please use `github issues <https://github.com/construct/construct/issues>`_ to ask general questions, make feature requests (and vote for them), report issues and bugs, and to submit PRs. Feel free to request any changes that would support your project. There is also a `gitter chat <https://gitter.im/construct-construct/Lobby>`_ but using Issues is highly recommended.
+Please use `github issues <https://github.com/construct/construct/issues>`_ to ask general questions, make feature requests (and vote for them), report issues and bugs, and to submit PRs. Feel free to request any changes that would support your project.
 
 Main documentation is at `readthedocs <http://construct.readthedocs.org>`_, which is substantial. Source is at `github <https://github.com/construct/construct>`_. Releases are available at `pypi <https://pypi.org/project/construct/>`_.
 
 
 Requirements
 --------------
-Construct should run on CPython 3.6 3.7 3.8 and PyPy 3.5 implementations. Recommended is newest CPython and PyPy because they support ordered keyword arguments, and also PyPy achieves much better performance. Therefore PyPy would be most recommended, despite the 3.5 version.
+Construct should run on CPython 3.6 3.7 3.8 3.9 and PyPy implementations. PyPy achieves much better performance. Therefore PyPy would be somewhat recommended.
 
 Following modules are needed only if you want to use certain features:
 
@@ -73,6 +73,8 @@ Following modules are needed only if you want to use certain features:
 * Arrow is optional, if you want to use Timestamp class.
 * Different Python versions support different compression modules (like gzip lzma), if you want to use Compressed class.
 * Ruamel.yaml is optional, if you want to use KaitaiStruct (KSY) exporter.
+* Cloudpickle is optional, if you want to serialize the classes.
+* LZ4 is optional, if you want to use CompressedLZ4 class.
 
 
 Installing
@@ -82,3 +84,11 @@ The library is downloadable and installable from Pypi. Just use standard command
 
 * pip install construct
 * pip install construct[extras]
+
+
+Type Hints / Type Annotations
+---------------------------------
+
+As an extension to this library there is the `construct-typing <https://pypi.org/project/construct-typing/>`_ library, which provides PEP 561 compliant stub files for this library. It also provides extended adapters to describe complex structures using PEP 526 type annotations for improved static code analysis with mypy.
+
+* pip install construct-typing

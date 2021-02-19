@@ -62,6 +62,7 @@ __all__ = [
     'ChecksumError',
     'Compiled',
     'Compressed',
+    'CompressedLZ4',
     'Computed',
     'Const',
     'ConstError',
@@ -203,6 +204,7 @@ __all__ = [
     'VarInt',
     'version',
     'version_string',
+    'ZigZag',
 ]
 __all__ += ["Int%s%s%s" % (n,us,bln) for n in (8,16,24,32,64) for us in "us" for bln in "bln"]
 __all__ += ["Float%s%s" % (n,bln) for n in (16,32,64) for bln in "bln"]

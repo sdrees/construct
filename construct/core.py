@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import struct, io, binascii, itertools, collections, pickle, sys, os, tempfile, hashlib, importlib
+import struct, io, binascii, itertools, collections, pickle, sys, os, hashlib, importlib
 
 from construct.lib import *
 from construct.expr import *
@@ -77,7 +77,6 @@ class CancelParsing(ConstructError):
 #===============================================================================
 def singleton(arg):
     x = arg()
-    x.__reduce__ = lambda: arg.__name__
     return x
 
 
@@ -351,7 +350,10 @@ class Construct(object):
         r"""
         Build an object into a closed binary file. See build().
         """
-        with open(filename, 'wb') as f:
+        # Open the file for reading as well as writing. This allows builders to
+        # read back the stream just written. For example. RawCopy does this.
+        # See issue #888.
+        with open(filename, 'w+b') as f:
             self.build_stream(obj, f, **contextkw)
 
     def _build(self, obj, stream, context, path):
@@ -981,14 +983,14 @@ def Bytewise(subcon):
 #===============================================================================
 class FormatField(Construct):
     r"""
-    Field that uses `struct` module to pack and unpack CPU-sized integers and floats. This is used to implement most Int* Float* fields, but for example cannot pack 24-bit integers, which is left to :class:`~construct.core.BytesInteger` class.
+    Field that uses `struct` module to pack and unpack CPU-sized integers and floats and booleans. This is used to implement most Int* Float* fields, but for example cannot pack 24-bit integers, which is left to :class:`~construct.core.BytesInteger` class. For booleans I also recommend using Flag class instead.
 
     See `struct module <https://docs.python.org/3/library/struct.html>`_ documentation for instructions on crafting format strings.
 
-    Parses into an integer. Builds from an integer into specified byte count and endianness. Size is determined by `struct` module according to specified format string.
+    Parses into an integer or float or boolean. Builds from an integer or float or boolean into specified byte count and endianness. Size is determined by `struct` module according to specified format string.
 
     :param endianity: string, character like: < > =
-    :param format: string, character like: f d B H L Q b h l q e
+    :param format: string, character like: B H L Q b h l q e f d ?
 
     :raises StreamError: requested reading negative amount, could not read enough bytes, requested writing different amount than actual data, or could not write all bytes
     :raises FormatFieldError: wrong format string, or struct.(un)pack complained about the value
@@ -1007,25 +1009,23 @@ class FormatField(Construct):
     def __init__(self, endianity, format):
         if endianity not in list("=<>"):
             raise FormatFieldError("endianity must be like: = < >", endianity)
+        if format not in list("fdBHLQbhlqe?"):
+            raise FormatFieldError("format must be like: B H L Q b h l q e f d ?", format)
 
-        if format not in list("fdBHLQbhlqe"):
-            raise FormatFieldError("format must be like: f d B H L Q b h l q e", format)
-
-        super(FormatField, self).__init__()
+        super().__init__()
         self.fmtstr = endianity+format
         self.length = struct.calcsize(endianity+format)
-        self.packer = struct.Struct(endianity+format)
 
     def _parse(self, stream, context, path):
         data = stream_read(stream, self.length, path)
         try:
-            return self.packer.unpack(data)[0]
+            return struct.unpack(self.fmtstr, data)[0]
         except Exception:
             raise FormatFieldError("struct %r error during parsing" % self.fmtstr, path=path)
 
     def _build(self, obj, stream, context, path):
         try:
-            data = self.packer.pack(obj)
+            data = struct.pack(self.fmtstr, obj)
         except Exception:
             raise FormatFieldError("struct %r error during building, given value %r" % (self.fmtstr, obj), path=path)
         stream_write(stream, data, self.length, path)
@@ -1065,7 +1065,7 @@ class BytesInteger(Construct):
 
     :param length: integer or context lambda, number of bytes in the field
     :param signed: bool, whether the value is signed (two's complement), default is False (unsigned)
-    :param swapped: bool, whether to swap byte order (little endian), default is False (big endian)
+    :param swapped: bool or context lambda, whether to swap byte order (little endian), default is False (big endian)
 
     :raises StreamError: requested reading negative amount, could not read enough bytes, requested writing different amount than actual data, or could not write all bytes
     :raises IntegerError: lenght is negative, given a negative value when field is not signed, or not an integer
@@ -1090,13 +1090,11 @@ class BytesInteger(Construct):
         self.swapped = swapped
 
     def _parse(self, stream, context, path):
-        length = self.length
-        if callable(length):
-            length = length(context)
+        length = evaluate(self.length, context)
         if length < 0:
             raise IntegerError("length must be non-negative", path=path)
         data = stream_read(stream, length, path)
-        if self.swapped:
+        if evaluate(self.swapped, context):
             data = data[::-1]
         return bytes2integer(data, self.signed)
 
@@ -1105,28 +1103,26 @@ class BytesInteger(Construct):
             raise IntegerError("value %r is not an integer" % (obj,), path=path)
         if obj < 0 and not self.signed:
             raise IntegerError("value %r is negative, but field is not signed" % (obj,), path=path)
-        length = self.length
-        if callable(length):
-            length = length(context)
+        length = evaluate(self.length, context)
         if length < 0:
             raise IntegerError("length must be non-negative", path=path)
         data = integer2bytes(obj, length)
-        if self.swapped:
+        if evaluate(self.swapped, context):
             data = data[::-1]
         stream_write(stream, data, length, path)
         return obj
 
     def _sizeof(self, context, path):
         try:
-            length = self.length
-            if callable(length):
-                length = length(context)
-            return length
+            return evaluate(self.length, context)
         except (KeyError, AttributeError):
             raise SizeofError("cannot calculate size, key not found in context", path=path)
 
     def _emitparse(self, code):
-        return "bytes2integer(read_bytes(io, %s)%s, %s)" % (self.length, "[::-1]" if self.swapped else "", self.signed)
+        if callable(self.swapped):
+            return "bytes2integer(read_bytes(io, %s)[::-1] if %s else read_bytes(io, %s), %s)" % (self.length, self.swapped, self.length, self.signed, )
+        else:
+            return "bytes2integer(read_bytes(io, %s)%s, %s)" % (self.length, "[::-1]" if self.swapped else "", self.signed, )
 
     def _emitprimitivetype(self, ksy, bitwise):
         if bitwise:
@@ -1134,6 +1130,7 @@ class BytesInteger(Construct):
             assert not self.swapped
             return "b%s" % (8*self.length, )
         else:
+            assert not callable(self.swapped)
             return "%s%s%s" % ("s" if self.signed else "u", self.length, "le" if self.swapped else "be", )
 
 
@@ -1149,7 +1146,7 @@ class BitsInteger(Construct):
 
     :param length: integer or context lambda, number of bits in the field
     :param signed: bool, whether the value is signed (two's complement), default is False (unsigned)
-    :param swapped: bool, whether to swap byte order (little endian), default is False (big endian)
+    :param swapped: bool or context lambda, whether to swap byte order (little endian), default is False (big endian)
 
     :raises StreamError: requested reading negative amount, could not read enough bytes, requested writing different amount than actual data, or could not write all bytes
     :raises IntegerError: lenght is negative, given a negative value when field is not signed, or not an integer
@@ -1174,13 +1171,11 @@ class BitsInteger(Construct):
         self.swapped = swapped
 
     def _parse(self, stream, context, path):
-        length = self.length
-        if callable(length):
-            length = length(context)
+        length = evaluate(self.length, context)
         if length < 0:
             raise IntegerError("length must be non-negative", path=path)
         data = stream_read(stream, length, path)
-        if self.swapped:
+        if evaluate(self.swapped, context):
             if length & 7:
                 raise IntegerError("little-endianness is only defined for multiples of 8 bits", path=path)
             data = swapbytes(data)
@@ -1191,13 +1186,11 @@ class BitsInteger(Construct):
             raise IntegerError("value %r is not an integer" % (obj,), path=path)
         if obj < 0 and not self.signed:
             raise IntegerError("value %r is negative, but field is not signed" % (obj,), path=path)
-        length = self.length
-        if callable(length):
-            length = length(context)
+        length = evaluate(self.length, context)
         if length < 0:
             raise IntegerError("length must be non-negative", path=path)
         data = integer2bits(obj, length)
-        if self.swapped:
+        if evaluate(self.swapped, context):
             if length & 7:
                 raise IntegerError("little-endianness is only defined for multiples of 8 bits", path=path)
             data = swapbytes(data)
@@ -1206,15 +1199,15 @@ class BitsInteger(Construct):
 
     def _sizeof(self, context, path):
         try:
-            length = self.length
-            if callable(length):
-                length = length(context)
-            return length
+            return evaluate(self.length, context)
         except (KeyError, AttributeError):
             raise SizeofError("cannot calculate size, key not found in context", path=path)
 
     def _emitparse(self, code):
-        return "bits2integer(read_bytes(io, %s)%s, %s)" % (self.length, "[::-1]" if self.swapped else "", self.signed, )
+        if callable(self.swapped):
+            return "bits2integer(read_bytes(io, %s)[::-1] if %s else read_bytes(io, %s), %s)" % (self.length, self.swapped, self.length, self.signed, )
+        else:
+            return "bits2integer(read_bytes(io, %s)%s, %s)" % (self.length, "[::-1]" if self.swapped else "", self.signed, )
 
     def _emitprimitivetype(self, ksy, bitwise):
         assert not self.signed
@@ -1416,7 +1409,7 @@ def Int24sn():
 @singleton
 class VarInt(Construct):
     r"""
-    VarInt encoded integer. Each 7 bits of the number are encoded in one byte of the stream, where leftmost bit (MSB) is unset when byte is terminal. Scheme is defined at Google site related to `Protocol Buffers <https://developers.google.com/protocol-buffers/docs/encoding>`_.
+    VarInt encoded unsigned integer. Each 7 bits of the number are encoded in one byte of the stream, where leftmost bit (MSB) is unset when byte is terminal. Scheme is defined at Google site related to `Protocol Buffers <https://developers.google.com/protocol-buffers/docs/encoding>`_.
 
     Can only encode non-negative numbers.
 
@@ -1438,7 +1431,7 @@ class VarInt(Construct):
         while True:
             b = byte2int(stream_read(stream, 1, path))
             acc.append(b & 0b01111111)
-            if not b & 0b10000000:
+            if b & 0b10000000 == 0:
                 break
         num = 0
         for b in reversed(acc):
@@ -1459,6 +1452,45 @@ class VarInt(Construct):
 
     def _emitprimitivetype(self, ksy, bitwise):
         return "vlq_base128_le"
+
+
+@singleton
+class ZigZag(Construct):
+    r"""
+    ZigZag encoded signed integer. This is a variation of VarInt encoding that also can encode negative numbers. Scheme is defined at Google site related to `Protocol Buffers <https://developers.google.com/protocol-buffers/docs/encoding>`_.
+
+    Can encode negative numbers.
+
+    Parses into an integer. Builds from an integer. Size is undefined.
+
+    :raises StreamError: requested reading negative amount, could not read enough bytes, requested writing different amount than actual data, or could not write all bytes
+    :raises IntegerError: given not an integer
+
+    Example::
+
+        >>> ZigZag.build(-3)
+        b'\x05'
+        >>> ZigZag.build(3)
+        b'\x06'
+    """
+
+    def _parse(self, stream, context, path):
+        x = VarInt._parse(stream, context, path)
+        if x & 1 == 0:
+            x = x//2
+        else:
+            x = -(x//2+1)
+        return x
+
+    def _build(self, obj, stream, context, path):
+        if not isinstance(obj, integertypes):
+            raise IntegerError("value is not an integer", path=path)
+        if obj >= 0:
+            x = 2*obj
+        else:
+            x = 2*abs(obj)-1
+        VarInt._build(x, stream, context, path)
+        return obj
 
 
 #===============================================================================
@@ -2619,11 +2651,9 @@ class Index(Construct):
 
     def _parse(self, stream, context, path):
         return context.get("_index", None)
-        raise IndexFieldError("did not find either key in context", path=path)
 
     def _build(self, obj, stream, context, path):
         return context.get("_index", None)
-        raise IndexFieldError("did not find either key in context", path=path)
 
     def _sizeof(self, context, path):
         return 0
@@ -4244,6 +4274,8 @@ class RawCopy(Subconstruct):
 
     Object is a dictionary with either "data" or "value" keys, or both.
 
+    When building, if both the "value" and "data" keys are present, then the "data" key is used and the "value" key is ignored. This is undesirable in the case that you parse some data for the purpose of modifying it and writing it back; in this case, delete the "data" key when modifying the "value" key to correctly rebuild the former.
+
     :param subcon: Construct instance
 
     :raises StreamError: stream is not seekable and tellable
@@ -4437,21 +4469,25 @@ def PrefixedArray(countfield, subcon):
         "count" / Rebuild(countfield, len_(this.items)),
         "items" / subcon[this.count],
     )
+
     def _emitparse(code):
         return "ListContainer((%s) for i in range(%s))" % (subcon._compileparse(code), countfield._compileparse(code), )
     macro._emitparse = _emitparse
+
     def _actualsize(self, stream, context, path):
         position1 = stream_tell(stream, path)
         count = countfield._parse(stream, context, path)
         position2 = stream_tell(stream, path)
         return (position2-position1) + count * subcon._sizeof(context, path)
     macro._actualsize = _actualsize
+
     def _emitseq(ksy, bitwise):
         return [
             dict(id="countfield", type=countfield._compileprimitivetype(ksy, bitwise)), 
             dict(id="data", type=subcon._compileprimitivetype(ksy, bitwise), repeat="expr", repeat_expr="countfield"),
         ]
     macro._emitseq = _emitseq
+
     return macro
 
 
@@ -4459,7 +4495,7 @@ class FixedSized(Subconstruct):
     r"""
     Restricts parsing to specified amount of bytes.
 
-    Parsing reads `length` bytes, then defers to subcon using new BytesIO with said bytes. Building builds the subcon using new BytesIO, then writes said data and additional null bytes accordingly. Size is same as `length`, although negative amount raises an error as well.
+    Parsing reads `length` bytes, then defers to subcon using new BytesIO with said bytes. Building builds the subcon using new BytesIO, then writes said data and additional null bytes accordingly. Size is same as `length`, although negative amount raises an error.
 
     :param length: integer or context lambda, total amount of bytes (both data and padding)
     :param subcon: Construct instance
@@ -5094,7 +5130,7 @@ class Checksum(Construct):
 
 class Compressed(Tunnel):
     r"""
-    Compresses and decompresses underlying stream when processing subcon. When parsing, entire stream is consumed. When building, puts compressed bytes without marking the end. This construct should be used with :class:`~construct.core.Prefixed` .
+    Compresses and decompresses underlying stream when processing subcon. When parsing, entire stream is consumed. When building, it puts compressed bytes without marking the end. This construct should be used with :class:`~construct.core.Prefixed` .
 
     Parsing and building transforms all bytes using a specified codec. Since data is processed until EOF, it behaves similar to `GreedyBytes`. Size is undefined.
 
@@ -5110,11 +5146,12 @@ class Compressed(Tunnel):
         >>> d = Prefixed(VarInt, Compressed(GreedyBytes, "zlib"))
         >>> d.build(bytes(100))
         b'\x0cx\x9cc`\xa0=\x00\x00\x00d\x00\x01'
-
+        >>> len(_)
+        13
    """
 
     def __init__(self, subcon, encoding, level=None):
-        super(Compressed, self).__init__(subcon)
+        super().__init__(subcon)
         self.encoding = encoding
         self.level = level
         if self.encoding == "zlib":
@@ -5145,6 +5182,40 @@ class Compressed(Tunnel):
             else:
                 return self.lib.compress(data, self.level)
         return self.lib.encode(data, self.encoding)
+
+
+class CompressedLZ4(Tunnel):
+    r"""
+    Compresses and decompresses underlying stream before processing subcon. When parsing, entire stream is consumed. When building, it puts compressed bytes without marking the end. This construct should be used with :class:`~construct.core.Prefixed` .
+
+    Parsing and building transforms all bytes using LZ4 library. Since data is processed until EOF, it behaves similar to `GreedyBytes`. Size is undefined.
+
+    :param subcon: Construct instance, subcon used for storing the value
+
+    :raises ImportError: needed module could not be imported by ctor
+    :raises StreamError: stream failed when reading until EOF
+
+    Can propagate lz4.frame exceptions.
+
+    Example::
+
+        >>> d = Prefixed(VarInt, CompressedLZ4(GreedyBytes))
+        >>> d.build(bytes(100))
+        b'"\x04"M\x18h@d\x00\x00\x00\x00\x00\x00\x00#\x0b\x00\x00\x00\x1f\x00\x01\x00KP\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        >>> len(_)
+        35
+   """
+
+    def __init__(self, subcon):
+        super().__init__(subcon)
+        import lz4.frame
+        self.lib = lz4.frame
+
+    def _decode(self, data, context, path):
+        return self.lib.decompress(data)
+
+    def _encode(self, data, context, path):
+        return self.lib.compress(data)
 
 
 class Rebuffered(Subconstruct):

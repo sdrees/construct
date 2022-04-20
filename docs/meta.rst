@@ -217,4 +217,10 @@ Indexing (square brackets) do not work in this expressions. Use a lambda:
 
 >>> lambda this: this.list[this.index]
 
+Sizeof method does not work in this expressions. Use a lambda:
+
+>>> lambda this: this._subcons.<member>.sizeof()
+
 Lambdas (unlike this expressions) are not compilable.
+
+

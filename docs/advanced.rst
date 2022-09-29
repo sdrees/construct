@@ -161,6 +161,10 @@ Both Enum and FlagsEnum support merging labels from IntEnum and IntFlag (enum34 
     Enum(Byte, E) <--> Enum(Byte, one=1, two=2)
     FlagsEnum(Byte, E) <--> FlagsEnum(Byte, one=1, two=2)
 
+.. warning::
+
+    Using the enum34 module is deprecated and should not be used.
+
 For completeness, there is also Mapping class, but using it is not recommended. Consider it a last resort.
 
 ::

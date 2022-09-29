@@ -28,3 +28,4 @@ Core API: Exception types
 .. autofunction:: construct.RawCopyError
 .. autofunction:: construct.ChecksumError
 .. autofunction:: construct.CancelParsing
+.. autofunction:: construct.CipherError

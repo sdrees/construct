@@ -18,4 +18,6 @@ Core API: Tunneling
 .. autofunction:: construct.Checksum
 .. autofunction:: construct.Compressed
 .. autofunction:: construct.CompressedLZ4
+.. autofunction:: construct.EncryptedSym
+.. autofunction:: construct.EncryptedSymAead
 .. autofunction:: construct.Rebuffered

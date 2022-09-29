@@ -26,6 +26,16 @@ Peek parses a field but restores the stream position afterwards (it peeks into t
 >>> d.sizeof()
 0
 
+OffsettedEnd parses a greedy subcon until EOF plus a negative offset. This way you can read (almost) all data but leaving some bytes left for a fixed sized footer.
+
+>>> d = Struct(
+...     "header" / Bytes(2),
+...     "data" / OffsettedEnd(-2, GreedyBytes),
+...     "footer" / Bytes(2),
+... )
+>>> d.parse(b"\x01\x02\x03\x04\x05\x06\x07")
+Container(header=b'\x01\x02', data=b'\x03\x04\x05', footer=b'\x06\x07')
+
 
 Pure side effects
 =================

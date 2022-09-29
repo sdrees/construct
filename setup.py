@@ -14,6 +14,11 @@ setup(
     long_description = open("README.rst").read(),
     platforms = ["POSIX", "Windows"],
     url = "http://construct.readthedocs.org",
+    project_urls = {
+        "Source": "https://github.com/construct/construct",
+        "Documentation": "https://construct.readthedocs.io/en/latest/",
+        "Issues": "https://github.com/construct/construct/issues",
+    },
     author = "Arkadiusz Bulski, Tomer Filiba, Corbin Simpson",
     author_email = "arek.bulski@gmail.com, tomerfiliba@gmail.com, MostAwesomeDude@gmail.com",
     python_requires = ">=3.6",
@@ -26,6 +31,7 @@ setup(
             "ruamel.yaml",
             "cloudpickle",
             "lz4",
+            "cryptography"
         ],
     },
     keywords = [

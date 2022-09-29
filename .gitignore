@@ -11,3 +11,4 @@ build/
 .cache
 .tox
 .pytest_cache
+example_*

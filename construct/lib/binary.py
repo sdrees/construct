@@ -12,10 +12,8 @@ def integer2bits(number, width, signed=False):
         >>> integer2bits(19, 8)
         b'\x00\x00\x00\x01\x00\x00\x01\x01'
     """
-    if width < 0:
-        raise ValueError(f"width {width} must be non-negative")
-    if width == 0:
-        return b""
+    if not width >= 1:
+        raise ValueError(f"width {width} must be positive")
 
     if signed:
         min = -(2 ** width // 2)
@@ -47,13 +45,13 @@ def integer2bytes(number, width, signed=False):
         '\x00\x00\x00\x13'
     """
     # pypy does not check this in int.to_bytes, lazy fuckers
-    if width < 0:
-        raise ValueError(f"width {width} must be non-negative")
+    if not width >= 1:
+        raise ValueError(f"width {width} must be positive")
 
     try:
         return int.to_bytes(number, width, 'big', signed=signed)
     except OverflowError:
-        raise ValueError(f"number {number} does not fit width {width} signed {signed}")
+        raise ValueError(f"number {number} does not fit width {width}, signed {signed}")
 
 
 def bits2integer(data, signed=False):
@@ -66,7 +64,7 @@ def bits2integer(data, signed=False):
         19
     """
     if data == b"":
-        return 0
+        raise ValueError("bit-string cannot be empty")
 
     number = 0
     for b in data:
@@ -88,6 +86,9 @@ def bytes2integer(data, signed=False):
         >>> bytes2integer(b'\x00\x00\x00\x13')
         19
     """
+    if data == b"":
+        raise ValueError("byte-string cannot be empty")
+
     return int.from_bytes(data, 'big', signed=signed)
 
 
@@ -114,7 +115,7 @@ def bits2bytes(data):
         >>> bits2bytes(b"\x00\x01\x01\x00\x00\x00\x00\x01\x00\x01\x01\x00\x00\x00\x01\x00")
         b'ab'
     """
-    if len(data) % 8:
+    if len(data) % 8 != 0:
         raise ValueError(f"data length {len(data)} must be a multiple of 8")
     return bytes(BITS2BYTES_CACHE[data[i:i+8]] for i in range(0,len(data),8))
 
@@ -140,8 +141,8 @@ def swapbytesinbits(data):
         >>> swapbytesinbits(b'0000000011111111')
         b'1111111100000000'
     """
-    if len(data) % 8:
-        raise ValueError(f"data length {len(data)} must be a multiple of 8")
+    if len(data) % 8 != 0:
+        raise ValueError(f"little-endianness is only defined if data length {len(data)} is multiple of 8")
     return b"".join(data[i:i+8] for i in reversed(range(0,len(data),8)))
 
 

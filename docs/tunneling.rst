@@ -234,3 +234,35 @@ LZ4 compression is also supported. It provides less compaction but does it at hi
 b'"\x04"M\x18h@d\x00\x00\x00\x00\x00\x00\x00#\x0b\x00\x00\x00\x1f\x00\x01\x00KP\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 >>> len(_)
 35
+
+
+Encryption and authentication
+----------------------------------------------------
+
+Subcons can also be easily encrypted and authenticated in a AEAD manner. Please note that the data sometimes needs to be aligned to a particular block size that depends on the encryption scheme used.
+
+::
+
+    >>> from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    >>> d = Struct(
+    ...     "iv" / Default(Bytes(16), os.urandom(16)),
+    ...     "enc_data" / EncryptedSym(
+    ...         Aligned(16,
+    ...             Struct(
+    ...                 "width" / Int16ul,
+    ...                 "height" / Int16ul,
+    ...             )
+    ...         ),
+    ...         lambda ctx: Cipher(algorithms.AES(ctx._.key), modes.CBC(ctx.iv))
+    ...     )
+    ... )
+    >>> key128 = b"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
+    >>> d.build({"enc_data": {"width": 5, "height": 4}}, key=key128)
+    b"o\x11i\x98~H\xc9\x1c\x17\x83\xf6|U:\x1a\x86+\x00\x89\xf7\x8e\xc3L\x04\t\xca\x8a\xc8\xc2\xfb'\xc8"
+    >>> d.parse(b"o\x11i\x98~H\xc9\x1c\x17\x83\xf6|U:\x1a\x86+\x00\x89\xf7\x8e\xc3L\x04\t\xca\x8a\xc8\xc2\xfb'\xc8", key=key128)
+    Container: 
+        iv = b'o\x11i\x98~H\xc9\x1c\x17\x83\xf6|U:\x1a\x86' (total 16)
+        enc_data = Container: 
+            width = 5
+            height = 4
+

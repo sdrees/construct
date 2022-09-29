@@ -92,3 +92,12 @@ Type Hints / Type Annotations
 As an extension to this library there is the `construct-typing <https://pypi.org/project/construct-typing/>`_ library, which provides PEP 561 compliant stub files for this library. It also provides extended adapters to describe complex structures using PEP 526 type annotations for improved static code analysis with mypy.
 
 * pip install construct-typing
+
+
+Visual Editor
+-----------------
+
+Another fancy extension to this library is the `construct-editor <https://pypi.org/project/construct-editor/>`_ visual editor for binary blobs that uses Construct parsing classes internally.
+
+* pip install construct-editor
+* construct-editor

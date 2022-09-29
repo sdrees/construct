@@ -11,6 +11,9 @@ from construct.version import *
 # exceptions
 #===============================================================================
 class ConstructError(Exception):
+    """
+    This is the root of all exceptions raised by parsing classes in this library. Note that the helper functions in lib module can raise standard ValueError (but parsing classes are not allowed to).
+    """
     def __init__(self, message='', path=None):
         self.path = path
         if path is None:
@@ -19,57 +22,141 @@ class ConstructError(Exception):
             message = "Error in path {}\n".format(path) + message
             super().__init__(message)
 class SizeofError(ConstructError):
+    """
+    Parsing classes sizeof() methods are only allowed to either return an integer or raise SizeofError instead. Note that this exception can mean the parsing class cannot be measured apriori in principle, however it can also mean that it just cannot be measured in these particular circumstances (eg. there is a key missing in the context dictionary at this time).
+    """
     pass
 class AdaptationError(ConstructError):
+    """
+    Currently not used.
+    """
     pass
 class ValidationError(ConstructError):
+    """
+    Validator ExprValidator derived parsing classes can raise this exception: OneOf NoneOf. It can mean that the parse or build value is or is not one of specified values.
+    """
     pass
 class StreamError(ConstructError):
+    """
+    Almost all parsing classes can raise this exception: it can mean a variety of things. Maybe requested reading negative amount, could not read enough bytes, requested writing different amount than actual data, could not write all bytes, stream is not seekable, stream is not tellable, etc. Note that there are a few parsing classes that do not use the stream to compute output and therefore do not raise this exception.
+    """
     pass
 class FormatFieldError(ConstructError):
+    """
+    Only one parsing class can raise this exception: FormatField. It can either mean the format string is invalid or the value is not valid for provided format string. See standard struct module for what is acceptable.
+    """
     pass
 class IntegerError(ConstructError):
+    """
+    Only some numeric parsing classes can raise this exception: BytesInteger BitsInteger VarInt ZigZag. It can mean either the length parameter is invalid, the value is not an integer, the value is negative or too low or too high for given parameters, or the selected endianness cannot be applied.
+    """
     pass
 class StringError(ConstructError):
+    """
+    Almost all parsing classes can raise this exception: It can mean a unicode string was passed instead of bytes, or a bytes was passed instead of a unicode string. Also some classes can raise it explicitly: PascalString CString GreedyString. It can mean no encoding or invalid encoding was selected. Note that currently, if the data cannot be encoded decoded given selected encoding then UnicodeEncodeError UnicodeDecodeError are raised, which are not rooted at ConstructError.
+    """
     pass
 class MappingError(ConstructError):
+    """
+    Few parsing classes can raise this exception: Enum FlagsEnum Mapping. It can mean the build value is not recognized and therefore cannot be mapped onto bytes.
+    """
     pass
 class RangeError(ConstructError):
+    """
+    Few parsing classes can raise this exception: Array PrefixedArray LazyArray. It can mean the count parameter is invalid, or the build object has too little or too many elements.
+    """
     pass
 class RepeatError(ConstructError):
+    """
+    Only one parsing class can raise this exception: RepeatUntil. It can mean none of the elements in build object passed the given predicate.
+    """
     pass
 class ConstError(ConstructError):
+    """
+    Only one parsing class can raise this exception: Const. It can mean the wrong data was parsed, or wrong object was built from.
+    """
     pass
 class IndexFieldError(ConstructError):
+    """
+    Only one parsing class can raise this exception: Index. It can mean the class was not nested in an array parsing class properly and therefore cannot access the _index context key.
+    """
     pass
 class CheckError(ConstructError):
+    """
+    Only one parsing class can raise this exception: Check. It can mean the condition lambda failed during a routine parsing building check.
+    """
     pass
 class ExplicitError(ConstructError):
+    """
+    Only one parsing class can raise this exception: Error. It can mean the parsing class was merely parsed or built with.
+    """
     pass
 class NamedTupleError(ConstructError):
+    """
+    Only one parsing class can raise this exception: NamedTuple. It can mean the subcon is not of a valid type.
+    """
     pass
 class TimestampError(ConstructError):
+    """
+    Only one parsing class can raise this exception: Timestamp. It can mean the subcon unit or epoch are invalid.
+    """
     pass
 class UnionError(ConstructError):
+    """
+    Only one parsing class can raise this exception: Union. It can mean none of given subcons was properly selected, or trying to build without providing a proper value.
+    """
     pass
 class SelectError(ConstructError):
+    """
+    Only one parsing class can raise this exception: Select. It can mean neither subcon succeded when parsing or building.
+    """
     pass
 class SwitchError(ConstructError):
+    """
+    Currently not used.
+    """
     pass
 class StopFieldError(ConstructError):
+    """
+    Only one parsing class can raise this exception: StopIf. It can mean the given condition was met during parsing or building.
+    """
     pass
 class PaddingError(ConstructError):
+    """
+    Multiple parsing classes can raise this exception: PaddedString Padding Padded Aligned FixedSized NullTerminated NullStripped. It can mean multiple issues: the encoded string or bytes takes more bytes than padding allows, length parameter was invalid, pattern terminator or pad is not a proper bytes value, modulus was less than 2.
+    """
     pass
 class TerminatedError(ConstructError):
+    """
+    Only one parsing class can raise this exception: Terminated. It can mean EOF was not found as expected during parsing.
+    """
     pass
 class RawCopyError(ConstructError):
+    """
+    Only one parsing class can raise this exception: RawCopy. It can mean it cannot build as both data and value keys are missing from build dict object.
+    """
     pass
 class RotationError(ConstructError):
+    """
+    Only one parsing class can raise this exception: ProcessRotateLeft. It can mean the specified group is less than 1, data is not of valid length.
+    """
     pass
 class ChecksumError(ConstructError):
+    """
+    Only one parsing class can raise this exception: Checksum. It can mean expected and actual checksum do not match.
+    """
     pass
 class CancelParsing(ConstructError):
+    """
+    This exception can only be raise explicitly by the user, and it causes the parsing class to stop what it is doing (interrupts parsing or building).
+    """
     pass
+class CipherError(ConstructError):
+    """
+    Two parsing classes can raise this exception: EncryptedSym EncryptedSymAead. It can mean none or invalid cipher object was provided.
+    """
+    pass
+
 
 
 #===============================================================================
@@ -129,17 +216,23 @@ def stream_tell(stream, path):
 
 
 def stream_size(stream):
-    fallback = stream.tell()
-    end = stream.seek(0, 2)
-    stream.seek(fallback)
-    return end
+    try:
+        fallback = stream.tell()
+        end = stream.seek(0, 2)
+        stream.seek(fallback)
+        return end
+    except Exception:
+        raise StreamError("stream. seek() tell() failed", path="???")
 
 
 def stream_iseof(stream):
-    fallback = stream.tell()
-    data = stream.read(1)
-    stream.seek(fallback)
-    return not data
+    try:
+        fallback = stream.tell()
+        data = stream.read(1)
+        stream.seek(fallback)
+        return not data
+    except Exception:
+        raise StreamError("stream. read() seek() tell() failed", path="???")
 
 
 class CodeGen:
@@ -1101,7 +1194,7 @@ class BytesInteger(Construct):
     :param swapped: bool or context lambda, whether to swap byte order (little endian), default is False (big endian)
 
     :raises StreamError: requested reading negative amount, could not read enough bytes, requested writing different amount than actual data, or could not write all bytes
-    :raises IntegerError: length is negative
+    :raises IntegerError: length is negative or zero
     :raises IntegerError: value is not an integer
     :raises IntegerError: number does not fit given width and signed parameters
 
@@ -1126,8 +1219,8 @@ class BytesInteger(Construct):
 
     def _parse(self, stream, context, path):
         length = evaluate(self.length, context)
-        if length < 0:
-            raise IntegerError(f"length {length} must be non-negative", path=path)
+        if length <= 0:
+            raise IntegerError(f"length {length} must be positive", path=path)
         data = stream_read(stream, length, path)
         if evaluate(self.swapped, context):
             data = swapbytes(data)
@@ -1139,11 +1232,9 @@ class BytesInteger(Construct):
     def _build(self, obj, stream, context, path):
         if not isinstance(obj, integertypes):
             raise IntegerError(f"value {obj} is not an integer", path=path)
-        if obj < 0 and not self.signed:
-            raise IntegerError(f"value {obj} is negative but signed is false", path=path)
         length = evaluate(self.length, context)
-        if length < 0:
-            raise IntegerError(f"length {length} must be non-negative", path=path)
+        if length <= 0:
+            raise IntegerError(f"length {length} must be positive", path=path)
         try:
             data = integer2bytes(obj, length, self.signed)
         except ValueError as e:
@@ -1199,7 +1290,7 @@ class BitsInteger(Construct):
     :param swapped: bool or context lambda, whether to swap byte order (little endian), default is False (big endian)
 
     :raises StreamError: requested reading negative amount, could not read enough bytes, requested writing different amount than actual data, or could not write all bytes
-    :raises IntegerError: length is negative
+    :raises IntegerError: length is negative or zero
     :raises IntegerError: value is not an integer
     :raises IntegerError: number does not fit given width and signed parameters
     :raises IntegerError: little-endianness selected but length is not multiple of 8 bits
@@ -1246,14 +1337,12 @@ class BitsInteger(Construct):
 
     def _parse(self, stream, context, path):
         length = evaluate(self.length, context)
-        if length < 0:
-            raise IntegerError(f"length {length} must be non-negative", path=path)
+        if length <= 0:
+            raise IntegerError(f"length {length} must be positive", path=path)
         data = stream_read(stream, length, path)
-        if evaluate(self.swapped, context):
-            if length % 8:
-                raise IntegerError(f"little-endianness is only defined if {length} is multiple of 8 bits", path=path)
-            data = swapbytesinbits(data)
         try:
+            if evaluate(self.swapped, context):
+                data = swapbytesinbits(data)
             return bits2integer(data, self.signed)
         except ValueError as e:
             raise IntegerError(str(e), path=path)
@@ -1261,19 +1350,15 @@ class BitsInteger(Construct):
     def _build(self, obj, stream, context, path):
         if not isinstance(obj, integertypes):
             raise IntegerError(f"value {obj} is not an integer", path=path)
-        if obj < 0 and not self.signed:
-            raise IntegerError(f"value {obj} is negative but signed is false", path=path)
         length = evaluate(self.length, context)
-        if length < 0:
-            raise IntegerError(f"length {length} must be non-negative", path=path)
+        if length <= 0:
+            raise IntegerError(f"length {length} must be positive", path=path)
         try:
             data = integer2bits(obj, length, self.signed)
+            if evaluate(self.swapped, context):
+                data = swapbytesinbits(data)
         except ValueError as e:
             raise IntegerError(str(e), path=path)
-        if evaluate(self.swapped, context):
-            if length % 8:
-                raise IntegerError(f"little-endianness is only defined if {length} is multiple of 8 bits", path=path)
-            data = swapbytesinbits(data)
         stream_write(stream, data, length, path)
         return obj
 
@@ -1541,7 +1626,7 @@ class ZigZag(Construct):
     r"""
     ZigZag encoded signed integer. This is a variant of VarInt encoding that also can encode negative numbers. Scheme is defined at Google site related to `Protocol Buffers <https://developers.google.com/protocol-buffers/docs/encoding>`_.
 
-    Can encode negative numbers.
+    Can also encode negative numbers.
 
     Parses into an integer. Builds from an integer. Size is undefined.
 
@@ -3739,7 +3824,7 @@ class Select(Construct):
                 obj = sc._parsereport(stream, context, path)
             except ExplicitError:
                 raise
-            except ConstructError:
+            except Exception:
                 stream_seek(stream, fallback, 0, path)
             else:
                 return obj
@@ -4399,6 +4484,52 @@ class Peek(Subconstruct):
         return "obj"
 
 
+class OffsettedEnd(Subconstruct):
+    r"""
+    Parses all bytes in the stream till `EOF plus a negative endoffset` is reached.
+
+    This is useful when GreedyBytes (or any other greedy construct) is followed by a fixed-size footer.
+
+    Parsing determines the length of the stream and reads all bytes till EOF plus `endoffset` is reached, then defers to subcon using new BytesIO with said bytes. Building defers to subcon as-is. Size is undefined.
+
+    :param endoffset: integer or context lambda, only negative offsets or zero are allowed
+    :param subcon: Construct instance
+
+    :raises StreamError: could not read enough bytes
+    :raises StreamError: reads behind the stream (if endoffset is positive)
+
+    Example::
+
+        >>> d = Struct(
+        ...     "header" / Bytes(2),
+        ...     "data" / OffsettedEnd(-2, GreedyBytes),
+        ...     "footer" / Bytes(2),
+        ... )
+        >>> d.parse(b"\x01\x02\x03\x04\x05\x06\x07")
+        Container(header=b'\x01\x02', data=b'\x03\x04\x05', footer=b'\x06\x07')
+    """
+
+    def __init__(self, endoffset, subcon):
+        super().__init__(subcon)
+        self.endoffset = endoffset
+
+    def _parse(self, stream, context, path):
+        endoffset = evaluate(self.endoffset, context)
+        curpos = stream_tell(stream, path)
+        stream_seek(stream, 0, 2, path)
+        endpos = stream_tell(stream, path)
+        stream_seek(stream, curpos, 0, path)
+        length = endpos + endoffset - curpos
+        data = stream_read(stream, length, path)
+        return self.subcon._parsereport(io.BytesIO(data), context, path)
+
+    def _build(self, obj, stream, context, path):
+        return self.subcon._build(obj, stream, context, path)
+
+    def _sizeof(self, context, path):
+        raise SizeofError(path=path)
+
+
 class Seek(Construct):
     r"""
     Seeks the stream.
@@ -4704,10 +4835,6 @@ class Prefixed(Subconstruct):
         if self.includelength:
             length -= self.lengthfield._sizeof(context, path)
         data = stream_read(stream, length, path)
-        if self.subcon is GreedyBytes:
-            return data
-        if type(self.subcon) is GreedyString:
-            return data.decode(self.subcon.encoding)
         return self.subcon._parsereport(io.BytesIO(data), context, path)
 
     def _build(self, obj, stream, context, path):
@@ -4830,10 +4957,6 @@ class FixedSized(Subconstruct):
         if length < 0:
             raise PaddingError("length cannot be negative", path=path)
         data = stream_read(stream, length, path)
-        if self.subcon is GreedyBytes:
-            return data
-        if type(self.subcon) is GreedyString:
-            return data.decode(self.subcon.encoding)
         return self.subcon._parsereport(io.BytesIO(data), context, path)
 
     def _build(self, obj, stream, context, path):
@@ -4918,10 +5041,6 @@ class NullTerminated(Subconstruct):
                     stream_seek(stream, -unit, 1, path)
                 break
             data += b
-        if self.subcon is GreedyBytes:
-            return data
-        if type(self.subcon) is GreedyString:
-            return data.decode(self.subcon.encoding)
         return self.subcon._parsereport(io.BytesIO(data), context, path)
 
     def _build(self, obj, stream, context, path):
@@ -4980,10 +5099,6 @@ class NullStripped(Subconstruct):
             while end-unit >= 0 and data[end-unit:end] == pad:
                 end -= unit
             data = data[:end]
-        if self.subcon is GreedyBytes:
-            return data
-        if type(self.subcon) is GreedyString:
-            return data.decode(self.subcon.encoding)
         return self.subcon._parsereport(io.BytesIO(data), context, path)
 
     def _build(self, obj, stream, context, path):
@@ -5100,10 +5215,6 @@ class Transformed(Subconstruct):
         if isinstance(self.decodeamount, integertypes):
             data = stream_read(stream, self.decodeamount, path)
         data = self.decodefunc(data)
-        if self.subcon is GreedyBytes:
-            return data
-        if type(self.subcon) is GreedyString:
-            return data.decode(self.subcon.encoding)
         return self.subcon._parsereport(io.BytesIO(data), context, path)
 
     def _build(self, obj, stream, context, path):
@@ -5219,10 +5330,6 @@ class ProcessXor(Subconstruct):
         if isinstance(pad, bytestringtype):
             if not (len(pad) <= 64 and pad == bytes(len(pad))):
                 data = integers2bytes( (b ^ p) for b,p in zip(data, itertools.cycle(pad)) )
-        if self.subcon is GreedyBytes:
-            return data
-        if type(self.subcon) is GreedyString:
-            return data.decode(self.subcon.encoding)
         return self.subcon._parsereport(io.BytesIO(data), context, path)
 
     def _build(self, obj, stream, context, path):
@@ -5315,10 +5422,6 @@ class ProcessRotateLeft(Subconstruct):
             indices_pairs = [ ((i+amount_bytes) % group, (i+1+amount_bytes) % group) for i in range(group)]
             data = integers2bytes( (data_ints[i+k1] << amount1) & 0xff | (data_ints[i+k2] >> amount2) for i in range(0,len(data),group) for k1,k2 in indices_pairs )
 
-        if self.subcon is GreedyBytes:
-            return data
-        if type(self.subcon) is GreedyString:
-            return data.decode(self.subcon.encoding)
         return self.subcon._parsereport(io.BytesIO(data), context, path)
 
     def _build(self, obj, stream, context, path):
@@ -5522,6 +5625,174 @@ class CompressedLZ4(Tunnel):
         return self.lib.compress(data)
 
 
+class EncryptedSym(Tunnel):
+    r"""
+    Perform symmetrical encryption and decryption of the underlying stream before processing subcon. When parsing, entire stream is consumed. When building, it puts encrypted bytes without marking the end.
+
+    Parsing and building transforms all bytes using the selected cipher. Since data is processed until EOF, it behaves similar to `GreedyBytes`. Size is undefined.
+
+    The key for encryption and decryption should be passed via `contextkw` to `build` and `parse` methods.
+
+    This construct is heavily based on the `cryptography` library, which supports the following algorithms and modes. For more details please see the documentation of that library.
+    
+    Algorithms:
+    - AES
+    - Camellia
+    - ChaCha20
+    - TripleDES
+    - CAST5
+    - SEED
+    - SM4
+    - Blowfish (weak cipher)
+    - ARC4 (weak cipher)
+    - IDEA (weak cipher)
+
+    Modes:
+    - CBC
+    - CTR
+    - OFB
+    - CFB
+    - CFB8
+    - XTS
+    - ECB (insecure)
+
+    .. note:: Keep in mind that some of the algorithms require padding of the data. This can be done e.g. with :class:`~construct.core.Aligned`.
+    .. note:: For GCM mode use :class:`~construct.core.EncryptedSymAead`.
+
+    :param subcon: Construct instance, subcon used for storing the value
+    :param cipher: Cipher object or context lambda from cryptography.hazmat.primitives.ciphers
+
+    :raises ImportError: needed module could not be imported
+    :raises StreamError: stream failed when reading until EOF
+    :raises CipherError: no cipher object is provided
+    :raises CipherError: an AEAD cipher is used
+
+    Can propagate cryptography.exceptions exceptions.
+
+    Example::
+
+        >>> from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        >>> d = Struct(
+        ...     "iv" / Default(Bytes(16), os.urandom(16)),
+        ...     "enc_data" / EncryptedSym(
+        ...         Aligned(16,
+        ...             Struct(
+        ...                 "width" / Int16ul,
+        ...                 "height" / Int16ul,
+        ...             )
+        ...         ),
+        ...         lambda ctx: Cipher(algorithms.AES(ctx._.key), modes.CBC(ctx.iv))
+        ...     )
+        ... )
+        >>> key128 = b"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
+        >>> d.build({"enc_data": {"width": 5, "height": 4}}, key=key128)
+        b"o\x11i\x98~H\xc9\x1c\x17\x83\xf6|U:\x1a\x86+\x00\x89\xf7\x8e\xc3L\x04\t\xca\x8a\xc8\xc2\xfb'\xc8"
+        >>> d.parse(b"o\x11i\x98~H\xc9\x1c\x17\x83\xf6|U:\x1a\x86+\x00\x89\xf7\x8e\xc3L\x04\t\xca\x8a\xc8\xc2\xfb'\xc8", key=key128)
+        Container: 
+            iv = b'o\x11i\x98~H\xc9\x1c\x17\x83\xf6|U:\x1a\x86' (total 16)
+            enc_data = Container: 
+                width = 5
+                height = 4
+   """
+
+    def __init__(self, subcon, cipher):
+        import cryptography
+        super().__init__(subcon)
+        self.cipher = cipher
+
+    def _evaluate_cipher(self, context, path):
+        from cryptography.hazmat.primitives.ciphers import Cipher, modes
+        cipher = evaluate(self.cipher, context)
+        if not isinstance(cipher, Cipher):
+            raise CipherError(f"cipher {repr(cipher)} is not a cryptography.hazmat.primitives.ciphers.Cipher object", path=path)
+        if isinstance(cipher.mode, modes.GCM):
+            raise CipherError(f"AEAD cipher is not supported in this class, use EncryptedSymAead", path=path)
+        return cipher
+
+    def _decode(self, data, context, path):
+        cipher = self._evaluate_cipher(context, path)
+        decryptor = cipher.decryptor()
+        return decryptor.update(data) + decryptor.finalize()
+
+    def _encode(self, data, context, path):
+        cipher = self._evaluate_cipher(context, path)
+        encryptor = cipher.encryptor()
+        return encryptor.update(data) + encryptor.finalize()
+
+
+class EncryptedSymAead(Tunnel):
+    r"""
+    Perform symmetrical AEAD encryption and decryption of the underlying stream before processing subcon. When parsing, entire stream is consumed. When building, it puts encrypted bytes and tag without marking the end.
+
+    Parsing and building transforms all bytes using the selected cipher and also authenticates the `associated_data`. Since data is processed until EOF, it behaves similar to `GreedyBytes`. Size is undefined.
+
+    The key for encryption and decryption should be passed via `contextkw` to `build` and `parse` methods.
+
+    This construct is heavily based on the `cryptography` library, which supports the following AEAD ciphers. For more details please see the documentation of that library.
+    
+    AEAD ciphers:
+    - AESGCM
+    - AESCCM
+    - ChaCha20Poly1305
+
+    :param subcon: Construct instance, subcon used for storing the value
+    :param cipher: Cipher object or context lambda from cryptography.hazmat.primitives.ciphers
+
+    :raises ImportError: needed module could not be imported
+    :raises StreamError: stream failed when reading until EOF
+    :raises CipherError: unsupported cipher object is provided
+
+    Can propagate cryptography.exceptions exceptions.
+
+    Example::
+
+        >>> from cryptography.hazmat.primitives.ciphers import aead
+        >>> d = Struct(
+        ...     "nonce" / Default(Bytes(16), os.urandom(16)),
+        ...     "associated_data" / Bytes(21),
+        ...     "enc_data" / EncryptedSymAead(
+        ...         GreedyBytes,
+        ...         lambda ctx: aead.AESGCM(ctx._.key),
+        ...         this.nonce,
+        ...         this.associated_data
+        ...     )
+        ... )
+        >>> key128 = b"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
+        >>> d.build({"associated_data": b"This is authenticated", "enc_data": b"The secret message"}, key=key128)
+        b'\xe3\xb0"\xbaQ\x18\xd3|\x14\xb0q\x11\xb5XZ\xeeThis is authenticated\x88~\xe5Vh\x00\x01m\xacn\xad k\x02\x13\xf4\xb4[\xbe\x12$\xa0\x7f\xfb\xbf\x82Ar\xb0\x97C\x0b\xe3\x85'
+        >>> d.parse(b'\xe3\xb0"\xbaQ\x18\xd3|\x14\xb0q\x11\xb5XZ\xeeThis is authenticated\x88~\xe5Vh\x00\x01m\xacn\xad k\x02\x13\xf4\xb4[\xbe\x12$\xa0\x7f\xfb\xbf\x82Ar\xb0\x97C\x0b\xe3\x85', key=key128)
+        Container: 
+            nonce = b'\xe3\xb0"\xbaQ\x18\xd3|\x14\xb0q\x11\xb5XZ\xee' (total 16)
+            associated_data = b'This is authenti'... (truncated, total 21)
+            enc_data = b'The secret messa'... (truncated, total 18)
+   """
+
+    def __init__(self, subcon, cipher, nonce, associated_data=b""):
+        super().__init__(subcon)
+        self.cipher = cipher
+        self.nonce = nonce
+        self.associated_data = associated_data
+
+    def _evaluate_cipher(self, context, path):
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM, AESCCM, ChaCha20Poly1305
+        cipher = evaluate(self.cipher, context)
+        if not isinstance(cipher, (AESGCM, AESCCM, ChaCha20Poly1305)):
+            raise CipherError(f"cipher object {repr(cipher)} is not supported", path=path)
+        return cipher
+
+    def _decode(self, data, context, path):
+        cipher = self._evaluate_cipher(context, path)
+        nonce = evaluate(self.nonce, context)
+        associated_data = evaluate(self.associated_data, context)
+        return cipher.decrypt(nonce, data, associated_data)
+
+    def _encode(self, data, context, path):
+        cipher = self._evaluate_cipher(context, path)
+        nonce = evaluate(self.nonce, context)
+        associated_data = evaluate(self.associated_data, context)
+        return cipher.encrypt(nonce, data, associated_data)
+
+
 class Rebuffered(Subconstruct):
     r"""
     Caches bytes from underlying stream, so it becomes seekable and tellable, and also becomes blocking on reading. Useful for processing non-file streams like pipes, sockets, etc.
@@ -5594,7 +5865,7 @@ class Lazy(Subconstruct):
             obj = self.subcon._parsereport(stream, context, path)
             stream_seek(stream, fallback, 0, path)
             return obj
-        len = self.subcon._actualsize(self, context, path)
+        len = self.subcon._actualsize(stream, context, path)
         stream_seek(stream, len, 1, path)
         return execute
 
@@ -5985,7 +6256,7 @@ def OneOf(subcon, valids):
     r"""
     Validates that the object is one of the listed values, both during parsing and building.
 
-    .. note:: For performance, `valids` should be a set/frozenset.
+    .. note:: For performance, `valids` should be a set or frozenset.
 
     :param subcon: Construct instance, subcon to validate
     :param valids: collection implementing __contains__, usually a list or set
@@ -6007,7 +6278,7 @@ def NoneOf(subcon, invalids):
     r"""
     Validates that the object is none of the listed values, both during parsing and building.
 
-    .. note:: For performance, `valids` should be a set/frozenset.
+    .. note:: For performance, `valids` should be a set or frozenset.
 
     :param subcon: Construct instance, subcon to validate
     :param invalids: collection implementing __contains__, usually a list or set

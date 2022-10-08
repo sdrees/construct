@@ -371,6 +371,19 @@ def test_enum_issue_677():
     assert str(d.parse(b"\x01")) == 'Container: \n    e = (enum) one 1'
     assert str(d.parse(b"\xff")) == 'Container: \n    e = (enum) (unknown) 255'
 
+@xfail(reason="Cannot implement this in EnumIntegerString.")
+def test_enum_issue_992():
+    import enum
+    class E(enum.IntEnum):
+        a = 1
+    class F(enum.IntFlag):
+        b = 2
+    d = Enum(Byte, E, F)
+    x = d.parse(b"\x01")
+    assert x == E.a
+    x = d.parse(b"\x02")
+    assert x == F.b
+
 def test_flagsenum():
     d = FlagsEnum(Byte, one=1, two=2, four=4, eight=8)
     common(d, b"\x03", Container(_flagsenum=True, one=True, two=True, four=False, eight=False), 1)

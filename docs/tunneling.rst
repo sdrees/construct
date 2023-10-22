@@ -88,6 +88,10 @@ NullTerminated consumes bytes up to first occurance of the term. When building, 
 >>> d.parse(b'\xff\x00')
 255
 
+.. warning::
+
+    The term can be multiple bytes, to support string classes with UTF16/32 encodings for example. Be warned however: as reported in Issue 1046, the data read must be a multiple of the term length and the term must start at a unit boundary, otherwise strange things happen when parsing.
+
 NullStripped consumes bytes till EOF, and for that matter should be restricted by Prefixed FixedSized etc, and then strips paddings. Subcon is parsed using a new stream build using those stripped bytes. When building, it just builds the subcon as-is.
 
 >>> d = NullStripped(Byte)

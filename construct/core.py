@@ -1692,17 +1692,25 @@ class StringEncoded(Adapter):
         self.encoding = encoding
 
     def _decode(self, obj, context, path):
-        return obj.decode(self.encoding)
+        try:
+            return obj.decode(self.encoding)
+        except:
+            raise StringError(f"cannot use encoding {self.encoding!r} to decode {obj!r}")
 
     def _encode(self, obj, context, path):
         if not isinstance(obj, unicodestringtype):
             raise StringError("string encoding failed, expected unicode string", path=path)
         if obj == u"":
             return b""
-        return obj.encode(self.encoding)
+        try:
+            return obj.encode(self.encoding)
+        except:
+            raise StringError(f"cannot use encoding {self.encoding!r} to encode {obj!r}")
 
     def _emitparse(self, code):
-        return f"({self.subcon._compileparse(code)}).decode({repr(self.encoding)})"
+        raise NotImplementedError
+        # Not sure what the correct implementation would be.
+        # return f"({self.subcon._compileparse(code)}).decode({repr(self.encoding)})"
 
     def _emitbuild(self, code):
         raise NotImplementedError
@@ -4992,7 +5000,7 @@ class NullTerminated(Subconstruct):
 
     Parsing reads one byte at a time and accumulates it with previous bytes. When term was found, (by default) consumes but discards the term. When EOF was found, (by default) raises same StreamError exception. Then subcon is parsed using new BytesIO made with said data. Building builds the subcon and then writes the term. Size is undefined.
 
-    The term can be multiple bytes, to support string classes with UTF16/32 encodings.
+    The term can be multiple bytes, to support string classes with UTF16/32 encodings for example. Be warned however: as reported in Issue 1046, the data read must be a multiple of the term length and the term must start at a unit boundary, otherwise strange things happen when parsing.
 
     :param subcon: Construct instance
     :param term: optional, bytes, terminator byte-string, default is \x00 single null byte

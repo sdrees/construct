@@ -1,3 +1,3 @@
-version = (2,10,68)
-version_string = "2.10.68"
-release_date = "2022.02.21"
+version = (2,10,69)
+version_string = "2.10.69"
+release_date = "2023.10.22"

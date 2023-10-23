@@ -25,13 +25,12 @@ setup(
     install_requires = [],
     extras_require = {
         "extras": [
-            "enum34",
             "numpy",
             "arrow",
             "ruamel.yaml",
             "cloudpickle",
             "lz4",
-            "cryptography"
+            "cryptography",
         ],
     },
     keywords = [
@@ -64,6 +63,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: PyPy",
     ],

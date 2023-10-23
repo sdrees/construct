@@ -25,7 +25,7 @@ html:
 installdeps:
 	apt-get install python3.10 python3-pip python3-sphinx --upgrade
 	python3.10 -m pip install pytest pytest-benchmark pytest-cov twine wheel --upgrade
-	python3.10 -m pip install enum34 numpy arrow ruamel.yaml cloudpickle lz4 cryptography --upgrade
+	python3.10 -m pip install numpy arrow ruamel.yaml cloudpickle lz4 cryptography --upgrade
 
 version:
 	./version-increment

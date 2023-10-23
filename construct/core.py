@@ -235,6 +235,29 @@ def stream_iseof(stream):
         raise StreamError("stream. read() seek() tell() failed", path="???")
 
 
+class BytesIOWithOffsets(io.BytesIO):
+    @staticmethod
+    def from_reading(stream, length: int, path: str):
+        offset = stream_tell(stream, path)
+        contents = stream_read(stream, length, path)
+        return BytesIOWithOffsets(contents, stream, offset)
+
+    def __init__(self, contents: bytes, parent_stream, offset: int):
+        super().__init__(contents)
+        self.parent_stream = parent_stream
+        self.parent_stream_offset = offset
+
+    def tell(self) -> int:
+        return super().tell() + self.parent_stream_offset
+
+    def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
+        if whence != io.SEEK_SET:
+            super().seek(offset, whence)
+        else:
+            super().seek(offset - self.parent_stream_offset)
+        return self.tell()
+
+
 class CodeGen:
     def __init__(self):
         self.blocks = []
@@ -1899,7 +1922,7 @@ class Enum(Adapter):
 
     There is no default parameter, because if no mapping is found, it parses into an integer without error.
 
-    This class supports enum34 module. See examples.
+    This class supports enum module. See examples.
 
     This class supports exposing member labels as attributes, as integer-convertible strings. See examples.
 
@@ -1995,7 +2018,7 @@ class FlagsEnum(Adapter):
 
     Parses integer subcon, then creates a Container, where flags define each key. Builds from a container by bitwise-oring of each flag if it matches a set key. Can build from an integer flag or string label directly, as well as | concatenations thereof (see examples). Size is same as subcon, unless it raises SizeofError.
 
-    This class supports enum34 module. See examples.
+    This class supports enum module. See examples.
 
     This class supports exposing member labels as attributes, as bitwisable strings. See examples.
 
@@ -2085,7 +2108,7 @@ class FlagsEnum(Adapter):
 
 class Mapping(Adapter):
     r"""
-    Adapter that maps objects to other objects. Translates objects after parsing and before building. Can for example, be used to translate between enum34 objects and strings, but Enum class supports enum34 already and is recommended.
+    Adapter that maps objects to other objects. Translates objects after parsing and before building. Can for example, be used to translate between enum objects and strings, but Enum class supports enum module already and is recommended.
 
     :param subcon: Construct instance
     :param mapping: dict, for encoding (building) mapping, the reversed is used for parsing mapping
@@ -2277,6 +2300,7 @@ class Struct(Construct):
             def {fname}(obj, io, this):
                 this = Container(_ = this, _params = this['_params'], _root = None, _parsing = False, _building = True, _sizing = False, _subcons = None, _io = io, _index = this.get('_index', None))
                 this['_root'] = this['_'].get('_root', this)
+                this.update(obj)
                 try:
                     objdict = obj
         """
@@ -4528,8 +4552,8 @@ class OffsettedEnd(Subconstruct):
         endpos = stream_tell(stream, path)
         stream_seek(stream, curpos, 0, path)
         length = endpos + endoffset - curpos
-        data = stream_read(stream, length, path)
-        return self.subcon._parsereport(io.BytesIO(data), context, path)
+        substream = BytesIOWithOffsets.from_reading(stream, length, path)
+        return self.subcon._parsereport(substream, context, path)
 
     def _build(self, obj, stream, context, path):
         return self.subcon._build(obj, stream, context, path)
@@ -4842,8 +4866,8 @@ class Prefixed(Subconstruct):
         length = self.lengthfield._parsereport(stream, context, path)
         if self.includelength:
             length -= self.lengthfield._sizeof(context, path)
-        data = stream_read(stream, length, path)
-        return self.subcon._parsereport(io.BytesIO(data), context, path)
+        substream = BytesIOWithOffsets.from_reading(stream, length, path)
+        return self.subcon._parsereport(substream, context, path)
 
     def _build(self, obj, stream, context, path):
         stream2 = io.BytesIO()
@@ -4964,8 +4988,8 @@ class FixedSized(Subconstruct):
         length = evaluate(self.length, context)
         if length < 0:
             raise PaddingError("length cannot be negative", path=path)
-        data = stream_read(stream, length, path)
-        return self.subcon._parsereport(io.BytesIO(data), context, path)
+        substream = BytesIOWithOffsets.from_reading(stream, length, path)
+        return self.subcon._parsereport(substream, context, path)
 
     def _build(self, obj, stream, context, path):
         length = evaluate(self.length, context)
@@ -5034,6 +5058,7 @@ class NullTerminated(Subconstruct):
         if unit < 1:
             raise PaddingError("NullTerminated term must be at least 1 byte", path=path)
         data = b''
+        offset = stream_tell(stream, path)
         while True:
             try:
                 b = stream_read(stream, unit, path)
@@ -5049,7 +5074,8 @@ class NullTerminated(Subconstruct):
                     stream_seek(stream, -unit, 1, path)
                 break
             data += b
-        return self.subcon._parsereport(io.BytesIO(data), context, path)
+        substream = BytesIOWithOffsets(data, stream, offset)
+        return self.subcon._parsereport(substream, context, path)
 
     def _build(self, obj, stream, context, path):
         buildret = self.subcon._build(obj, stream, context, path)
@@ -5096,6 +5122,7 @@ class NullStripped(Subconstruct):
         unit = len(pad)
         if unit < 1:
             raise PaddingError("NullStripped pad must be at least 1 byte", path=path)
+        offset = stream_tell(stream, path)
         data = stream_read_entire(stream, path)
         if unit == 1:
             data = data.rstrip(pad)
@@ -5107,7 +5134,8 @@ class NullStripped(Subconstruct):
             while end-unit >= 0 and data[end-unit:end] == pad:
                 end -= unit
             data = data[:end]
-        return self.subcon._parsereport(io.BytesIO(data), context, path)
+        substream = BytesIOWithOffsets(data, stream, offset)
+        return self.subcon._parsereport(substream, context, path)
 
     def _build(self, obj, stream, context, path):
         return self.subcon._build(obj, stream, context, path)
@@ -5331,6 +5359,7 @@ class ProcessXor(Subconstruct):
             raise StringError("ProcessXor needs integer or bytes pad", path=path)
         if isinstance(pad, bytestringtype) and len(pad) == 1:
             pad = byte2int(pad)
+        offset = stream_tell(stream, path)
         data = stream_read_entire(stream, path)
         if isinstance(pad, integertypes):
             if not (pad == 0):
@@ -5338,7 +5367,8 @@ class ProcessXor(Subconstruct):
         if isinstance(pad, bytestringtype):
             if not (len(pad) <= 64 and pad == bytes(len(pad))):
                 data = integers2bytes( (b ^ p) for b,p in zip(data, itertools.cycle(pad)) )
-        return self.subcon._parsereport(io.BytesIO(data), context, path)
+        substream = BytesIOWithOffsets(data, stream, offset)
+        return self.subcon._parsereport(substream, context, path)
 
     def _build(self, obj, stream, context, path):
         pad = evaluate(self.padfunc, context)
@@ -6203,8 +6233,8 @@ class ExprAdapter(Adapter):
     Generic adapter that takes `decoder` and `encoder` lambdas as parameters. You can use ExprAdapter instead of writing a full-blown class deriving from Adapter when only a simple lambda is needed.
 
     :param subcon: Construct instance, subcon to adapt
-    :param decoder: lambda that takes (obj, context, path) and returns an decoded version of obj
-    :param encoder: lambda that takes (obj, context, path) and returns an encoded version of obj
+    :param decoder: lambda that takes (obj, context) and returns an decoded version of obj
+    :param encoder: lambda that takes (obj, context) and returns an encoded version of obj
 
     Example::
 
@@ -6225,7 +6255,7 @@ class ExprSymmetricAdapter(ExprAdapter):
     Macro around :class:`~construct.core.ExprAdapter`.
 
     :param subcon: Construct instance, subcon to adapt
-    :param encoder: lambda that takes (obj, context, path) and returns both encoded version and decoded version of obj
+    :param encoder: lambda that takes (obj, context) and returns both encoded version and decoded version of obj
 
     Example::
 

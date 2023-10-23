@@ -166,6 +166,10 @@ example = Struct(
     "len1" / Computed(len_(this.items1)),
     Check(this.len1 == 3),
 
+    "len2" / Rebuild(Computed(5), len_(this.items2)),
+    "items2" / Bytes(5),
+    Check(this.len2 == 5),
+
     # WARNING: faulty list_ implementation, but compiles into correct code?
     # "repeatuntil2" / RepeatUntil(list_ == [0], Byte),
     # "repeatuntil3" / RepeatUntil(obj_ == 0, Byte),

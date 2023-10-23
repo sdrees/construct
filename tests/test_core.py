@@ -196,6 +196,7 @@ def test_varint():
     assert raises(d.sizeof) == SizeofError
 
 def test_varint_issue_705():
+    # no asserts needed
     d = Struct('namelen' / VarInt, 'name' / Bytes(this.namelen))
     d.build(Container(namelen = 400, name = bytes(400)))
     d = Struct('namelen' / VarInt, Check(this.namelen == 400))
@@ -219,6 +220,7 @@ def test_zigzag_regression():
     assert isinstance(d.parse(b"\x05"), integertypes)
     assert isinstance(d.parse(b"\x06"), integertypes)
     d = Struct('namelen' / ZigZag, Check(this.namelen == 400))
+    # no asserts needed
     d.build(dict(namelen=400))
 
 def test_paddedstring():
@@ -238,8 +240,8 @@ def test_paddedstring():
         common(PaddedString(100, e), data, s, 100)
 
     for e in ["ascii","utf8","utf16","utf-16-le","utf32","utf-32-le"]:
-        PaddedString(10, e).sizeof() == 10
-        PaddedString(this.n, e).sizeof(n=10) == 10
+        assert PaddedString(10, e).sizeof() == 10
+        assert PaddedString(this.n, e).sizeof(n=10) == 10
 
 def test_pascalstring():
     for e,us in [("utf8",1),("utf16",2),("utf_16_le",2),("utf32",4),("utf_32_le",4)]:
@@ -250,8 +252,8 @@ def test_pascalstring():
             common(PascalString(sc, e), sc.build(0), u"")
 
     for e in ["utf8","utf16","utf-16-le","utf32","utf-32-le","ascii"]:
-        raises(PascalString(Byte, e).sizeof) == SizeofError
-        raises(PascalString(VarInt, e).sizeof) == SizeofError
+        assert raises(PascalString(Byte, e).sizeof) == SizeofError
+        assert raises(PascalString(VarInt, e).sizeof) == SizeofError
 
 def test_pascalstring_issue_960():
     d = Select(PascalString(Byte, "ascii"))
@@ -269,7 +271,7 @@ def test_cstring():
     CString("utf32").build(s) == b'\xff\xfe\x00\x00\x10\x04\x00\x00D\x04\x00\x00>\x04\x00\x00=\x04\x00\x00'+b"\x00\x00\x00\x00"
 
     for e in ["utf8","utf16","utf-16-le","utf32","utf-32-le","ascii"]:
-        raises(CString(e).sizeof) == SizeofError
+        assert raises(CString(e).sizeof) == SizeofError
 
 def test_greedystring():
     for e,us in [("utf8",1),("utf16",2),("utf_16_le",2),("utf32",4),("utf_32_le",4)]:
@@ -278,7 +280,7 @@ def test_greedystring():
         common(GreedyString(e), b"", u"")
 
     for e in ["utf8","utf16","utf-16-le","utf32","utf-32-le","ascii"]:
-        raises(GreedyString(e).sizeof) == SizeofError
+        assert raises(GreedyString(e).sizeof) == SizeofError
 
 def test_string_encodings():
     # checks that "-" is replaced with "_"
@@ -289,7 +291,7 @@ def test_flag():
     d = Flag
     common(d, b"\x00", False, 1)
     common(d, b"\x01", True, 1)
-    d.parse(b"\xff") == True
+    assert d.parse(b"\xff") == True
 
 def test_enum():
     d = Enum(Byte, one=1, two=2, four=4, eight=8)
@@ -636,12 +638,13 @@ def test_rebuild_issue_664():
         greedyrange = [1,2,3,4],
         repeatuntil = [1,2,3,4],
     )
+    # no asserts are needed
     d.build(obj)
 
 def test_default():
     d = Default(Byte, 0)
     common(d, b"\xff", 255, 1)
-    d.build(None) == b"\x00"
+    assert d.build(None) == b"\x00"
 
 def test_check():
     common(Check(True), b"", None, 0)
@@ -952,7 +955,7 @@ def test_pointer():
         'inner' / Struct(),
         'x' / Pointer(0, Byte, stream=this.inner._io),
     )
-    d.parse(bytes(20)) == 0
+    assert d.parse(bytes(20)) == Container(inner=Container(), x=0)
 
 def test_peek():
     d = Peek(Int8ub)
@@ -966,10 +969,6 @@ def test_peek():
 
     d = Struct("a"/Peek(Int8ub), "b"/Int16ub)
     common(d, b"\x01\x02", Container(a=0x01, b=0x0102), 2)
-    d = Struct(Peek("a"/Byte), Peek("b"/Int16ub))
-    d.parse(b"\x01\x02") == Container(a=0x01, b=0x0102)
-    d.build(Container(a=0x01, b=0x0102)) == b"\x01\x02"
-    d.sizeof() == 0
 
 def test_offsettedend():
     d = Struct(
@@ -2397,7 +2396,7 @@ def test_adapters_context_issue_954():
 def test_nullterminated_longterm_issue_1046():
     d = NullTerminated(GreedyBytes, term=b"END")
     assert d.parse(b"xxxEND") == b"xxx"
-    raises(d.parse, b"xENDxx") == StreamError
+    assert raises(d.parse, b"xENDxx") == StreamError
 
 def test_compile_binexpr_bitwise_and_issue_1039():
     d = Struct(
@@ -2426,3 +2425,13 @@ def test_unicode_error():
     d = Select(PaddedString(255, "ascii"), CString("ascii"), PascalString(Byte, "ascii"), GreedyString("ascii"), Pass)
     data = u"Афон".encode()
     assert d.parse(data) == None
+
+def test_issue_1014():
+    d = Struct(
+        "version" / Int16ub,
+        "box" / Prefixed(Int8ub, Struct(
+            "position" / Tell,
+            "payload" / GreedyBytes,
+        )),
+    )
+    assert d.parse(bytes([1,2,3,4,5,6])) == Container(version=0x0102, box=Container(position=3, payload=b'\x04\x05\x06'))

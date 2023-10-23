@@ -68,13 +68,13 @@ Construct should run on CPython 3.6 3.7 3.8 3.9 3.10 and PyPy implementations. P
 
 Following modules are needed only if you want to use certain features:
 
-* Enum34 is optional if you want Enum EnumFlags to take labels from IntEnum IntFlag.
 * Numpy is optional, if you want to serialize arrays using Numpy protocol. Otherwise arrays can still be serialized using PrefixedArray.
 * Arrow is optional, if you want to use Timestamp class.
 * Different Python versions support different compression modules (like gzip lzma), if you want to use Compressed class.
 * Ruamel.yaml is optional, if you want to use KaitaiStruct (KSY) exporter.
 * Cloudpickle is optional, if you want to serialize the classes.
 * LZ4 is optional, if you want to use CompressedLZ4 class.
+* Cryptography is optional, if you want to use Encrypted* classes.
 
 
 Installing

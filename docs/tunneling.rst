@@ -8,7 +8,7 @@ Obtaining raw bytes
 
 When some value needs to be processed as both a parsed object and its raw bytes representation, both of these can be obtained using RawCopy. You can build from either the object or raw bytes as well. Dict also happen to contain the stream offsets, if you need to know at which position it resides in the stream or if you need to know its size in bytes.
 
-When building, if both the "value" and "data" keys are present, then the "data" key is used and the "value" key is ignored. This is undesirable in the case that you parse some data for the purpose of modifying it and writing it back; in this case, delete the "data" key when modifying the "value" key to correctly rebuild the former.
+When building, if both the ``"value"`` and ``"data"`` keys are present, then the ``"data"`` key is used and the ``"value"`` key is ignored. This is undesirable in the case that you parse some data for the purpose of modifying it and writing it back; in this case, delete the ``"data"`` key when modifying the ``"value"`` key to correctly rebuild the former.
 
 >>> d = RawCopy(Byte)
 >>> d.parse(b"\xff")
@@ -22,7 +22,7 @@ b'\xff'
 Endianness
 ----------
 
-When little endianness is needed, either use integer fields like `Int*l` or `BytesInteger(swapped=True)` or swap bytes of an arbitrary field:
+When little endianness is needed, either use integer fields like ``Int*l`` or ``BytesInteger(swapped=True)`` or swap bytes of an arbitrary field:
 
 ::
 
@@ -40,7 +40,7 @@ b'\x00\x00\x00\x00\x00\x00\x00\x01'
 >>> d.parse(b"\x01")
 b'\x01\x00\x00\x00\x00\x00\x00\x00'
 
-In case that endianness is determined at parse/build time, you can pass endianness (`swapped` parameter) by the context:
+In case that endianness is determined at parse/build time, you can pass endianness (``swapped`` parameter) by the context:
 
 >>> d = BytesInteger(2, swapped=this.swapped)
 >>> d.build(1, swapped=True)
@@ -53,27 +53,27 @@ b'\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Working with bytes subsets
 --------------------------------------------
 
-Greedy* constructs consume as much data as possible, they read until EOF. This is convenient when building from a list of unknown length but becomes a problem when parsing it back and the list needs to be separated from following data. This can be achieved either by prepending a byte count (see Prefixed) or by prepending an element count (see PrefixedArray):
+``Greedy*`` constructs consume as much data as possible, they read until EOF. This is convenient when building from a list of unknown length but becomes a problem when parsing it back and the list needs to be separated from following data. This can be achieved either by prepending a byte count (see ``Prefixed``) or by prepending an element count (see ``PrefixedArray``):
 
-VarInt encoding is recommended because it is both compact and never overflows. Also and optionally, the length field can include its own size. If so, length field must be of fixed size.
+``VarInt`` encoding is recommended because it is both compact and never overflows. Also and optionally, the length field can include its own size. If so, length field must be of fixed size.
 
 >>> d = Prefixed(VarInt, GreedyRange(Int32ul))
 >>> d.parse(b"\x08abcdefgh")
-[1684234849, 1751606885]
+ListContainer([1684234849, 1751606885])
 
 >>> d = PrefixedArray(VarInt, Int32ul)
 >>> d.parse(b"\x02abcdefgh")
-[1684234849, 1751606885]
+ListContainer([1684234849, 1751606885])
 
-There are also other means of restricting constructs to substreamed data. All 3 classes below work by substreaming data, meaning the subcon is not given the original stream but a new BytesIO made out of pre-read bytes. This allows Greedy* fields to work properly.
+There are also other means of restricting constructs to substreamed data. All 3 classes below work by substreaming data, meaning the subcon is not given the original stream but a new ``BytesIO`` made out of pre-read bytes. This allows ``Greedy*`` fields to work properly.
 
-FixedSized consumes a specified amount and then exposes inner construct to a new stream build out of those bytes. When building, it appends a padding to make a specified total.
+``FixedSized`` consumes a specified amount and then exposes inner construct to a new stream built out of those bytes. When building, it appends a padding to make a specified total.
 
 >>> d = FixedSized(10, Byte)
 >>> d.parse(b'\xff\x00\x00\x00\x00\x00\x00\x00\x00\x00')
 255
 
-FixedSized is similar to Padded. The results seem identical but the implementation is entirely different. FixedSized uses a substream and Padded uses stream.tell(). Therefore:
+``FixedSized`` is similar to ``Padded``. The results seem identical but the implementation is entirely different. ``FixedSized`` uses a substream and ``Padded`` uses stream.tell(). Therefore:
 
 ::
 
@@ -82,7 +82,7 @@ FixedSized is similar to Padded. The results seem identical but the implementati
     # UNSAFE
     Padded(10, GreedyBytes)
 
-NullTerminated consumes bytes up to first occurance of the term. When building, it just writes the subcon followed by the term.
+``NullTerminated`` consumes bytes up to first occurance of the term. When building, it just writes the subcon followed by the term.
 
 >>> d = NullTerminated(Byte)
 >>> d.parse(b'\xff\x00')
@@ -90,9 +90,9 @@ NullTerminated consumes bytes up to first occurance of the term. When building, 
 
 .. warning::
 
-    The term can be multiple bytes, to support string classes with UTF16/32 encodings for example. Be warned however: as reported in Issue 1046, the data read must be a multiple of the term length and the term must start at a unit boundary, otherwise strange things happen when parsing.
+    The term can be multiple bytes, to support string classes with UTF16/32 encodings for example. Be warned however: as reported in Issue #1046, the data read must be a multiple of the term length and the term must start at a unit boundary, otherwise strange things happen when parsing.
 
-NullStripped consumes bytes till EOF, and for that matter should be restricted by Prefixed FixedSized etc, and then strips paddings. Subcon is parsed using a new stream build using those stripped bytes. When building, it just builds the subcon as-is.
+``NullStripped`` consumes bytes till EOF, and for that matter should be restricted by ``Prefixed``, ``FixedSized`` etc, and then strips paddings. Subcon is parsed using a new stream built using those stripped bytes. When building, it just builds the subcon as-is.
 
 >>> d = NullStripped(Byte)
 >>> d.parse(b'\xff\x00\x00')
@@ -102,9 +102,9 @@ NullStripped consumes bytes till EOF, and for that matter should be restricted b
 Working with different bytes
 --------------------------------------------------
 
-RestreamData allows you to insert a field that parses some data that came either from some other field, from the context (like Bytes) or some literal hardcoded value in your code. Comes handy when for example, you are testing a large struct by parsing null bytes, but some field is unable to parse null bytes (like Numpy). It substitutes the stream with another data for the purposes of parsing a particular field in a Struct.
+``RestreamData`` allows you to insert a field that parses some data that came either from some other field, from the context (like ``Bytes``) or some literal hardcoded value in your code. Comes handy when for example, you are testing a large struct by parsing null bytes, but some field is unable to parse null bytes (like ``Numpy``). It substitutes the stream with another data for the purposes of parsing a particular field in a ``Struct``.
 
-Instead of data itself (bytes object) you can reference another stream (taken from the context like `this._stream`) or use a Construct that parses into bytes (including those exposed via context like `this._subcons.field`).
+Instead of data itself (bytes object) you can reference another stream (taken from the context like ``this._stream``) or use a Construct that parses into bytes (including those exposed via context like ``this._subcons.field``).
 
 ::
 
@@ -118,11 +118,11 @@ Instead of data itself (bytes object) you can reference another stream (taken fr
 
     >>> d = RestreamData(NullTerminated(GreedyBytes), Int16ub)
     >>> d.parse(b"\x01\x02\x00")
-    0x0102
+    258
 
     >>> d = RestreamData(FixedSized(2, GreedyBytes), Int16ub)
     >>> d.parse(b"\x01\x02\x00")
-    0x0102
+    258
 
 ::
 
@@ -131,21 +131,23 @@ Instead of data itself (bytes object) you can reference another stream (taken fr
         "numpy1" / RestreamData(this.numpy_data, Numpy),
         "numpy2" / Numpy, # this would fail when parsing null bytes
     )
-    d.parse(bytes(1000))
+    d.parse(...)
 
 
-Transformed allows you to process data before it gets into subcon (and after data left it) using simple bytes-to-bytes transformations. In fact, all core classes (like Bitwise) that use Restreamed also use Transformed. The only difference is that Transformed prefetches all bytes and transforms them in advance, but Restreamed fetches a unit at a time (few bytes usually). Therefore Restreamed can handle variable-sized fields, while Transformed works only with fixed-sized fields. For example:
+``Transformed`` allows you to process data before it gets into subcon (and after data left it) using simple bytes-to-bytes transformations. In fact, all core classes (like ``Bitwise``) that use ``Restreamed`` also use ``Transformed``. The only difference is that ``Transformed`` prefetches all bytes and transforms them in advance, but ``Restreamed`` fetches a unit at a time (few bytes usually). Therefore ``Restreamed`` can handle variable-sized fields, while ``Transformed`` works only with fixed-sized fields. For example:
 
 ::
 
+    >>> from construct.lib import *
     >>> d = Transformed(Bytes(16), bytes2bits, 2, bits2bytes, 2)
     >>> d.parse(b"\x00\x00")
     b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 
-Transformed can also process unknown amount of bytes, if that amount is entire data. Decode amount and encode amount are then set to None.
+``Transformed`` can also process unknown amount of bytes, if that amount is entire data. Decode amount and encode amount are then set to None.
 
 ::
 
+    >>> from construct.lib import *
     >>> d = Transformed(GreedyBytes, bytes2bits, None, bits2bytes, None)
     >>> d.parse(b"\x00\x00")
     b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
@@ -159,7 +161,7 @@ Transformed can also process unknown amount of bytes, if that amount is entire d
     except SizeofError:
         macro = Restreamed(subcon, bytes2bits, 1, bits2bytes, 8, lambda n: n//8)
 
-Restreamed is similar to Transformed, but the main difference is that Transformed requires fixed-sized subcon because it reads all bytes in advance, processes them, and then feeds them to the subcon. Restreamed on the other hand, reads few bytes at a time, the minimum amount on each stream read. Since both are used mostly internally, there is no tutorial how to use it, other than this short code above.
+``Restreamed`` is similar to ``Transformed``, but the main difference is that ``Transformed`` requires fixed-sized subcon because it reads all bytes in advance, processes them, and then feeds them to the subcon. ``Restreamed`` on the other hand, reads few bytes at a time, the minimum amount on each stream read. Since both are used mostly internally, there is no tutorial how to use it, other than this short code above.
 
 
 Processing data with XOR and ROL
@@ -170,7 +172,7 @@ This chapter is mostly relevant to KaitaiStruct compiler implementation, as foll
 Data can be transformed by XORing with a single or several bytes, and the key can also be taken from the context at runtime. Key can be of any positive length.
 
 >>> d = ProcessXor(0xf0 or b'\xf0', Int16ub)
->>> d.parse(b"\x00\xff")
+>>> print(hex(d.parse(b"\x00\xff")))
 0xf00f
 >>> d.sizeof()
 2
@@ -178,21 +180,21 @@ Data can be transformed by XORing with a single or several bytes, and the key ca
 Data can also be rotated (cycle shifted). Rotation is to the left on parsing, and to the right on building. Amount is in bits, and can be negative to make rotation right instead of left. Group size defines the size of chunks to which rotation is applied.
 
 >>> d = ProcessRotateLeft(4, 1, Int16ub)
->>> d.parse(b'\x0f\xf0')
+>>> print(hex(d.parse(b'\x0f\xf0')))
 0xf00f
 >>> d = ProcessRotateLeft(4, 2, Int16ub)
->>> d.parse(b'\x0f\xf0')
+>>> print(hex(d.parse(b'\x0f\xf0')))
 0xff00
 >>> d.sizeof()
 2
 
-Note that the classes read entire stream till EOF so they should be wrapped in FixedSized Prefixed etc unless you actually want to process the entire remaining stream.
+Note that the classes read entire stream till EOF so they should be wrapped in ``FixedSized``, ``Prefixed`` etc unless you actually want to process the entire remaining stream.
 
 
 Compression and checksuming
 ----------------------------------------
 
-Data can be easily checksummed. Note that checksum field does not need to be Bytes, and lambda may return an integer or otherwise.
+Data can be easily checksummed. Note that checksum field does not need to be ``Bytes``, and lambda may return an integer or otherwise.
 
 ::
 
@@ -223,7 +225,7 @@ Data can be easily checksummed. Note that checksum field does not need to be Byt
     d.build(dict(fields=dict(value={})))
 
 
-Data can also be easily compressed. Supported encodings include zlib/gzip/bzip2/lzma and entire codecs module. When parsing, entire stream is consumed. When building, it puts compressed bytes without marking the end. This construct should be used with :class:`~construct.core.Prefixed` or entire stream.
+Data can also be easily compressed. Supported encodings include zlib/gzip/bzip2/lzma and entire codecs module. When parsing, entire stream is consumed. When building, it puts compressed bytes without marking the end. This construct should be used with ``Prefixed`` or entire stream.
 
 >>> d = Prefixed(VarInt, Compressed(GreedyBytes, "zlib"))
 >>> d.build(bytes(100))
@@ -231,7 +233,7 @@ b'\x0cx\x9cc`\xa0=\x00\x00\x00d\x00\x01'
 >>> len(_)
 13
 
-LZ4 compression is also supported. It provides less compaction but does it at higher throughputs. This class is also supposed to be used with Prefixed class.
+LZ4 compression is also supported. It provides less compaction but does it at higher throughputs. This class is also supposed to be used with ``Prefixed`` class.
 
 >>> d = Prefixed(VarInt, CompressedLZ4(GreedyBytes))
 >>> d.build(bytes(100))

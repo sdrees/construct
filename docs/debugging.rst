@@ -11,7 +11,7 @@ Most end-user bugs originate from handling the context wrong. Sometimes you forg
 Probe
 =============
 
-The Probe simply dumps information to the screen. It will help you inspect the context tree, the stream, and partially constructed objects, so you can understand your problem better. It has the same interface as any other field, and you can just stick it into a Struct, near the place you wish to inspect. Do note that the printout happens during the construction, before the final object is ready.
+The ``Probe`` simply dumps information to the screen. It will help you inspect the context tree, the stream, and partially constructed objects, so you can understand your problem better. It has the same interface as any other field, and you can just stick it into a ``Struct``, near the place you wish to inspect. Do note that the printout happens during the construction, before the final object is ready.
 
 ::
 
@@ -21,7 +21,6 @@ The Probe simply dumps information to the screen. It will help you inspect the c
     ...     Probe(lookahead=32),
     ... )
     >>> d.parse(b"\x05abcde\x01\x02\x03")
-
     --------------------------------------------------
     Probe, path is (parsing), into is None
     Stream peek: (hexlified) b'010203'...
@@ -34,6 +33,7 @@ The Probe simply dumps information to the screen. It will help you inspect the c
             100
             101
     --------------------------------------------------
+    Container(count=5, items=ListContainer([97, 98, 99, 100, 101]))
 
 There is also feature that looks inside the context and extracts a part of it using a lambda instead of printing the entire context.
 
@@ -45,25 +45,24 @@ There is also feature that looks inside the context and extracts a part of it us
     ...     Probe(this.count),
     ... )
     >>> d.parse(b"\x05abcde\x01\x02\x03")
-
     --------------------------------------------------
     Probe, path is (parsing), into is this.count
     5
     --------------------------------------------------
+    Container(count=5, items=ListContainer([97, 98, 99, 100, 101]))
 
 
 Debugger
 =============
 
-The Debugger is a pdb-based full python debugger. Unlike Probe, Debugger is a subconstruct (it wraps an inner construct), so you simply put it around the problematic construct. If no exception occurs, the return value is passed right through. Otherwise, an interactive debugger pops, letting you tweak around.
+The ``Debugger`` is a pdb-based full python debugger. Unlike ``Probe``, ``Debugger`` is a subconstruct (it wraps an inner construct), so you simply put it around the problematic construct. If no exception occurs, the return value is passed right through. Otherwise, an interactive debugger pops, letting you tweak around.
 
-When an exception occurs while parsing, you can go up (using u) to the level of the debugger and set self.retval to the desired return value. This allows you to hot-fix the error. Then use q to quit the debugger prompt and resume normal execution with the fixed value. However, if you don't set self.retval, the exception will propagate up.
+When an exception occurs while parsing, you can go up (using ``u``) to the level of the debugger and set ``self.retval`` to the desired return value. This allows you to hot-fix the error. Then use ``q`` to quit the debugger prompt and resume normal execution with the fixed value. However, if you don't set ``self.retval``, the exception will propagate up.
 
 
 ::
 
     >>> Debugger(Byte[3]).build([])
-
     --------------------------------------------------
     Debugging exception of <Array: None>
     path is (building)

@@ -289,3 +289,36 @@ def test_regression_recursionlock():
     c = Container()
     str(c); repr(c)
     assert not c
+
+def test_method_shadowing_1():
+    c = Container()
+    assert c.update != 42
+    c['update'] = 42
+    assert c.update == 42
+
+def test_method_shadowing_2():
+    # TODO: test more possible things that might break if some method is shadowed
+    # ensure that methods work even if shadowed
+    import copy
+    c = Container(
+        x=42,
+        items='foo',
+        keys='bar',
+        __init__='',
+        search=lambda *_: 1/0,
+        update=lambda *_: 1/0,
+        copy=print,
+        # __copy__=print, # copy calls these two methods through instance, this will break things if is shadowed
+        # __deepcopy__=print,
+        # __class__=int, # this will break a lot of things, this should not be supported
+    )
+
+    dir(c)
+    assert c == copy.copy(c)
+    assert c == copy.deepcopy(c)
+    assert c is not copy.copy(c)
+    assert c is not copy.deepcopy(c)
+    assert Container.search(c, 'x') == 42
+    assert Container.search(c, 'y') == None
+    pytest.raises(ZeroDivisionError, c.search, 'x')
+

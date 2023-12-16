@@ -49,3 +49,5 @@ EncryptedSym EncryptedSymAead classes were added in tunneling category
 StringEncoded now properly raises StringError exceptions on encoding/decoding (bugfix)
 
 Soft dependency on enum34 is no longer included
+
+Container class was overhauled (thanks to @denballakh)

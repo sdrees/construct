@@ -219,28 +219,28 @@ def test_fullstrings():
     assert str(c) == "Container: \n    data = b'1234567890' (total 10)"
     assert repr(c) == "Container(data=b'1234567890')"
     c = Container(data=u"1234567890")
-    assert str(c) == "Container: \n    data = u'1234567890' (total 10)"
-    assert repr(c) == "Container(data=u'1234567890')"
+    assert str(c) == "Container: \n    data = '1234567890' (total 10)"
+    assert repr(c) == "Container(data='1234567890')"
     c = Container(data=b"1234567890123456789012345678901234567890")
     assert str(c) == "Container: \n    data = b'1234567890123456789012345678901234567890' (total 40)"
     assert repr(c) == "Container(data=b'1234567890123456789012345678901234567890')"
     c = Container(data=u"1234567890123456789012345678901234567890")
-    assert str(c) == "Container: \n    data = u'1234567890123456789012345678901234567890' (total 40)"
-    assert repr(c) == "Container(data=u'1234567890123456789012345678901234567890')"
+    assert str(c) == "Container: \n    data = '1234567890123456789012345678901234567890' (total 40)"
+    assert repr(c) == "Container(data='1234567890123456789012345678901234567890')"
 
     setGlobalPrintFullStrings(False)
     c = Container(data=b"1234567890")
     assert str(c) == "Container: \n    data = b'1234567890' (total 10)"
     assert repr(c) == "Container(data=b'1234567890')"
     c = Container(data=u"1234567890")
-    assert str(c) == "Container: \n    data = u'1234567890' (total 10)"
-    assert repr(c) == "Container(data=u'1234567890')"
+    assert str(c) == "Container: \n    data = '1234567890' (total 10)"
+    assert repr(c) == "Container(data='1234567890')"
     c = Container(data=b"1234567890123456789012345678901234567890")
     assert str(c) == "Container: \n    data = b'1234567890123456'... (truncated, total 40)"
     assert repr(c) == "Container(data=b'1234567890123456789012345678901234567890')"
     c = Container(data=u"1234567890123456789012345678901234567890")
-    assert str(c) == "Container: \n    data = u'12345678901234567890123456789012'... (truncated, total 40)"
-    assert repr(c) == "Container(data=u'1234567890123456789012345678901234567890')"
+    assert str(c) == "Container: \n    data = '12345678901234567890123456789012'... (truncated, total 40)"
+    assert repr(c) == "Container(data='1234567890123456789012345678901234567890')"
 
     setGlobalPrintFullStrings()
 

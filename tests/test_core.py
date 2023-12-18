@@ -217,8 +217,8 @@ def test_zigzag():
 
 def test_zigzag_regression():
     d = ZigZag
-    assert isinstance(d.parse(b"\x05"), integertypes)
-    assert isinstance(d.parse(b"\x06"), integertypes)
+    assert isinstance(d.parse(b"\x05"), int)
+    assert isinstance(d.parse(b"\x06"), int)
     d = Struct('namelen' / ZigZag, Check(this.namelen == 400))
     # no asserts needed
     d.build(dict(namelen=400))

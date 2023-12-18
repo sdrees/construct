@@ -21,7 +21,7 @@ setup(
     },
     author = "Arkadiusz Bulski, Tomer Filiba, Corbin Simpson",
     author_email = "arek.bulski@gmail.com, tomerfiliba@gmail.com, MostAwesomeDude@gmail.com",
-    python_requires = ">=3.6",
+    python_requires = ">=3.8",
     install_requires = [],
     extras_require = {
         "extras": [
@@ -58,12 +58,11 @@ setup(
         "Topic :: Software Development :: Build Tools",
         "Topic :: Software Development :: Code Generators",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: PyPy",
     ],

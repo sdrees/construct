@@ -49,7 +49,7 @@ class UTIndex(Construct):
         return sign * result
 
     def _build(self, obj, stream, context, path):
-        if not isinstance(obj, integertypes):
+        if not isinstance(obj, int):
             raise IntegerError("Value is not an integer")
         to_write = obj
         for i in range(5):

@@ -2,7 +2,7 @@ from construct.lib.py3compat import *
 import binascii
 
 
-class HexDisplayedInteger(integertypes[0]):
+class HexDisplayedInteger(int):
     """Used internally."""
     def __str__(self):
         return "0x" + format(self, self.fmtstr).upper()
@@ -13,21 +13,21 @@ class HexDisplayedInteger(integertypes[0]):
         obj.fmtstr = fmtstr
         return obj
 
-class HexDisplayedBytes(bytestringtype):
+class HexDisplayedBytes(bytes):
     """Used internally."""
     def __str__(self):
         if not hasattr(self, "render"):
-            self.render = "unhexlify(%s)" % (trimstring(binascii.hexlify(self)), )
+            self.render = "unhexlify(%r)" % (binascii.hexlify(self).decode(), )
         return self.render
 
 class HexDisplayedDict(dict):
     """Used internally."""
     def __str__(self):
         if not hasattr(self, "render"):
-            self.render = "unhexlify(%s)" % (trimstring(binascii.hexlify(self["data"])), )
+            self.render = "unhexlify(%r)" % (binascii.hexlify(self["data"]).decode(), )
         return self.render
 
-class HexDumpDisplayedBytes(bytestringtype):
+class HexDumpDisplayedBytes(bytes):
     """Used internally."""
     def __str__(self):
         if not hasattr(self, "render"):

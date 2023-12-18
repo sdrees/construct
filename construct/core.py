@@ -187,7 +187,7 @@ def stream_read_entire(stream, path):
 
 
 def stream_write(stream, data, length, path):
-    if not isinstance(data, bytestringtype):
+    if not isinstance(data, bytes):
         raise StringError("given non-bytes value, perhaps unicode? %r" % (data,), path=path)
     if length < 0:
         raise StreamError("length must be non-negative, found %s" % length, path=path)
@@ -738,7 +738,7 @@ class Construct(object):
         """
         Used for adding docstrings and parsed hooks to subcons, like "field" / Byte * "docstring" * processfunc.
         """
-        if isinstance(other, stringtypes):
+        if isinstance(other, str):
             return Renamed(self, newdocs=other)
         if callable(other):
             return Renamed(self, newparsed=other)
@@ -748,7 +748,7 @@ class Construct(object):
         """
         Used for adding docstrings and parsed hooks to subcons, like "field" / Byte * "docstring" * processfunc.
         """
-        if isinstance(other, stringtypes):
+        if isinstance(other, str):
             return Renamed(self, newdocs=other)
         if callable(other):
             return Renamed(self, newparsed=other)
@@ -1253,7 +1253,7 @@ class BytesInteger(Construct):
             raise IntegerError(str(e), path=path)
 
     def _build(self, obj, stream, context, path):
-        if not isinstance(obj, integertypes):
+        if not isinstance(obj, int):
             raise IntegerError(f"value {obj} is not an integer", path=path)
         length = evaluate(self.length, context)
         if length <= 0:
@@ -1371,7 +1371,7 @@ class BitsInteger(Construct):
             raise IntegerError(str(e), path=path)
 
     def _build(self, obj, stream, context, path):
-        if not isinstance(obj, integertypes):
+        if not isinstance(obj, int):
             raise IntegerError(f"value {obj} is not an integer", path=path)
         length = evaluate(self.length, context)
         if length <= 0:
@@ -1627,7 +1627,7 @@ class VarInt(Construct):
         return num
 
     def _build(self, obj, stream, context, path):
-        if not isinstance(obj, integertypes):
+        if not isinstance(obj, int):
             raise IntegerError(f"value {obj} is not an integer", path=path)
         if obj < 0:
             raise IntegerError(f"VarInt cannot build from negative number {obj}", path=path)
@@ -1673,7 +1673,7 @@ class ZigZag(Construct):
         return x
 
     def _build(self, obj, stream, context, path):
-        if not isinstance(obj, integertypes):
+        if not isinstance(obj, int):
             raise IntegerError(f"value {obj} is not an integer", path=path)
         if obj >= 0:
             x = 2*obj
@@ -1721,7 +1721,7 @@ class StringEncoded(Adapter):
             raise StringError(f"cannot use encoding {self.encoding!r} to decode {obj!r}")
 
     def _encode(self, obj, context, path):
-        if not isinstance(obj, unicodestringtype):
+        if not isinstance(obj, str):
             raise StringError("string encoding failed, expected unicode string", path=path)
         if obj == u"":
             return b""
@@ -1980,7 +1980,7 @@ class Enum(Adapter):
 
     def _encode(self, obj, context, path):
         try:
-            if isinstance(obj, integertypes):
+            if isinstance(obj, int):
                 return obj
             return self.encmapping[obj]
         except KeyError:
@@ -2073,9 +2073,9 @@ class FlagsEnum(Adapter):
 
     def _encode(self, obj, context, path):
         try:
-            if isinstance(obj, integertypes):
+            if isinstance(obj, int):
                 return obj
-            if isinstance(obj, stringtypes):
+            if isinstance(obj, str):
                 flags = 0
                 for name in obj.split("|"):
                     name = name.strip()
@@ -2832,7 +2832,7 @@ class Const(Subconstruct):
 
     def __init__(self, value, subcon=None):
         if subcon is None:
-            if not isinstance(value, bytestringtype):
+            if not isinstance(value, bytes):
                 raise StringError(f"given non-bytes value {repr(value)}, perhaps unicode?")
             subcon = Bytes(len(value))
         super().__init__(subcon)
@@ -3471,9 +3471,9 @@ def Timestamp(subcon, unit, epoch):
 
     if not isinstance(subcon, Construct):
         raise TimestampError("subcon should be Int*, experimentally Float*, or Int32ub when using msdos format")
-    if not isinstance(unit, (integertypes, float, stringtypes)):
+    if not isinstance(unit, (int, float, str)):
         raise TimestampError("unit must be one of: int float string")
-    if not isinstance(epoch, (integertypes, arrow.Arrow, stringtypes)):
+    if not isinstance(epoch, (int, arrow.Arrow, str)):
         raise TimestampError("epoch must be one of: int Arrow string")
 
     if unit == "msdos" or epoch == "msdos":
@@ -3494,7 +3494,7 @@ def Timestamp(subcon, unit, epoch):
         macro = MsdosTimestampAdapter(st)
 
     else:
-        if isinstance(epoch, integertypes):
+        if isinstance(epoch, int):
             epoch = arrow.Arrow(epoch, 1, 1)
         class EpochTimestampAdapter(TimestampAdapter):
             def _decode(self, obj, context, path):
@@ -3548,9 +3548,9 @@ class Hex(Adapter):
         unhexlify('00000102')
     """
     def _decode(self, obj, context, path):
-        if isinstance(obj, integertypes):
+        if isinstance(obj, int):
             return HexDisplayedInteger.new(obj, "0%sX" % (2 * self.subcon._sizeof(context, path)))
-        if isinstance(obj, bytestringtype):
+        if isinstance(obj, bytes):
             return HexDisplayedBytes(obj)
         if isinstance(obj, dict):
             return HexDisplayedDict(obj)
@@ -3605,7 +3605,7 @@ class HexDump(Adapter):
         ''')
     """
     def _decode(self, obj, context, path):
-        if isinstance(obj, bytestringtype):
+        if isinstance(obj, bytes):
             return HexDumpDisplayedBytes(obj)
         if isinstance(obj, dict):
             return HexDumpDisplayedDict(obj)
@@ -4199,7 +4199,7 @@ class Padded(Subconstruct):
     """
 
     def __init__(self, length, subcon, pattern=b"\x00"):
-        if not isinstance(pattern, bytestringtype) or len(pattern) != 1:
+        if not isinstance(pattern, bytes) or len(pattern) != 1:
             raise PaddingError("pattern expected to be bytes of length 1")
         super().__init__(subcon)
         self.length = length
@@ -4278,7 +4278,7 @@ class Aligned(Subconstruct):
     """
 
     def __init__(self, modulus, subcon, pattern=b"\x00"):
-        if not isinstance(pattern, bytestringtype) or len(pattern) != 1:
+        if not isinstance(pattern, bytes) or len(pattern) != 1:
             raise PaddingError("pattern expected to be bytes character")
         super().__init__(subcon)
         self.modulus = modulus
@@ -5183,7 +5183,7 @@ class RestreamData(Subconstruct):
 
     def _parse(self, stream, context, path):
         data = evaluate(self.datafunc, context)
-        if isinstance(data, bytestringtype):
+        if isinstance(data, bytes):
             stream2 = io.BytesIO(data)
         if isinstance(data, io.BytesIO):
             stream2 = data
@@ -5248,7 +5248,7 @@ class Transformed(Subconstruct):
     def _parse(self, stream, context, path):
         if isinstance(self.decodeamount, type(None)):
             data = stream_read_entire(stream, path)
-        if isinstance(self.decodeamount, integertypes):
+        if isinstance(self.decodeamount, int):
             data = stream_read(stream, self.decodeamount, path)
         data = self.decodefunc(data)
         return self.subcon._parsereport(io.BytesIO(data), context, path)
@@ -5258,7 +5258,7 @@ class Transformed(Subconstruct):
         buildret = self.subcon._build(obj, stream2, context, path)
         data = stream2.getvalue()
         data = self.encodefunc(data)
-        if isinstance(self.encodeamount, integertypes):
+        if isinstance(self.encodeamount, int):
             if len(data) != self.encodeamount:
                 raise StreamError("encoding transformation produced wrong amount of bytes, %s instead of expected %s" % (len(data), self.encodeamount, ), path=path)
         stream_write(stream, data, len(data), path)
@@ -5355,36 +5355,36 @@ class ProcessXor(Subconstruct):
 
     def _parse(self, stream, context, path):
         pad = evaluate(self.padfunc, context)
-        if not isinstance(pad, (integertypes, bytestringtype)):
+        if not isinstance(pad, (int, bytes)):
             raise StringError("ProcessXor needs integer or bytes pad", path=path)
-        if isinstance(pad, bytestringtype) and len(pad) == 1:
+        if isinstance(pad, bytes) and len(pad) == 1:
             pad = byte2int(pad)
         offset = stream_tell(stream, path)
         data = stream_read_entire(stream, path)
-        if isinstance(pad, integertypes):
+        if isinstance(pad, int):
             if not (pad == 0):
-                data = integers2bytes( (b ^ pad) for b in data )
-        if isinstance(pad, bytestringtype):
+                data = bytes((b ^ pad) for b in data)
+        if isinstance(pad, bytes):
             if not (len(pad) <= 64 and pad == bytes(len(pad))):
-                data = integers2bytes( (b ^ p) for b,p in zip(data, itertools.cycle(pad)) )
+                data = bytes((b ^ p) for b,p in zip(data, itertools.cycle(pad)))
         substream = BytesIOWithOffsets(data, stream, offset)
         return self.subcon._parsereport(substream, context, path)
 
     def _build(self, obj, stream, context, path):
         pad = evaluate(self.padfunc, context)
-        if not isinstance(pad, (integertypes, bytestringtype)):
+        if not isinstance(pad, (int, bytes)):
             raise StringError("ProcessXor needs integer or bytes pad", path=path)
-        if isinstance(pad, bytestringtype) and len(pad) == 1:
+        if isinstance(pad, bytes) and len(pad) == 1:
             pad = byte2int(pad)
         stream2 = io.BytesIO()
         buildret = self.subcon._build(obj, stream2, context, path)
         data = stream2.getvalue()
-        if isinstance(pad, integertypes):
+        if isinstance(pad, int):
             if not (pad == 0):
-                data = integers2bytes( (b ^ pad) for b in data )
-        if isinstance(pad, bytestringtype):
+                data = bytes((b ^ pad) for b in data)
+        if isinstance(pad, bytes):
             if not (len(pad) <= 64 and pad == bytes(len(pad))):
-                data = integers2bytes( (b ^ p) for b,p in zip(data, itertools.cycle(pad)) )
+                data = bytes((b ^ p) for b,p in zip(data, itertools.cycle(pad)))
         stream_write(stream, data, len(data), path)
         return buildret
 
@@ -5438,7 +5438,6 @@ class ProcessRotateLeft(Subconstruct):
         amount = amount % (group * 8)
         amount_bytes = amount // 8
         data = stream_read_entire(stream, path)
-        data_ints = bytes2integers(data)
 
         if len(data) % group != 0:
             raise RotationError("data length must be a multiple of group size", path=path)
@@ -5448,17 +5447,17 @@ class ProcessRotateLeft(Subconstruct):
 
         elif group == 1:
             translate = ProcessRotateLeft.precomputed_single_rotations[amount]
-            data = integers2bytes( translate[a] for a in data_ints )
+            data = bytes(translate[a] for a in data)
 
         elif amount % 8 == 0:
             indices = [(i + amount_bytes) % group for i in range(group)]
-            data = integers2bytes( data_ints[i+k] for i in range(0,len(data),group) for k in indices )
+            data = bytes(data[i+k] for i in range(0,len(data),group) for k in indices)
 
         else:
             amount1 = amount % 8
             amount2 = 8 - amount1
             indices_pairs = [ ((i+amount_bytes) % group, (i+1+amount_bytes) % group) for i in range(group)]
-            data = integers2bytes( (data_ints[i+k1] << amount1) & 0xff | (data_ints[i+k2] >> amount2) for i in range(0,len(data),group) for k1,k2 in indices_pairs )
+            data = bytes((data[i+k1] << amount1) & 0xff | (data[i+k2] >> amount2) for i in range(0,len(data),group) for k1,k2 in indices_pairs)
 
         return self.subcon._parsereport(io.BytesIO(data), context, path)
 
@@ -5473,7 +5472,6 @@ class ProcessRotateLeft(Subconstruct):
         stream2 = io.BytesIO()
         buildret = self.subcon._build(obj, stream2, context, path)
         data = stream2.getvalue()
-        data_ints = bytes2integers(data)
 
         if len(data) % group != 0:
             raise RotationError("data length must be a multiple of group size", path=path)
@@ -5483,17 +5481,17 @@ class ProcessRotateLeft(Subconstruct):
 
         elif group == 1:
             translate = ProcessRotateLeft.precomputed_single_rotations[amount]
-            data = integers2bytes( translate[a] for a in data_ints )
+            data = bytes(translate[a] for a in data)
 
         elif amount % 8 == 0:
             indices = [(i + amount_bytes) % group for i in range(group)]
-            data = integers2bytes( data_ints[i+k] for i in range(0,len(data),group) for k in indices )
+            data = bytes(data[i+k] for i in range(0,len(data),group) for k in indices)
 
         else:
             amount1 = amount % 8
             amount2 = 8 - amount1
             indices_pairs = [ ((i+amount_bytes) % group, (i+1+amount_bytes) % group) for i in range(group)]
-            data = integers2bytes( (data_ints[i+k1] << amount1) & 0xff | (data_ints[i+k2] >> amount2) for i in range(0,len(data),group) for k1,k2 in indices_pairs )
+            data = bytes((data[i+k1] << amount1) & 0xff | (data[i+k2] >> amount2) for i in range(0,len(data),group) for k1,k2 in indices_pairs)
 
         stream_write(stream, data, len(data), path)
         return buildret
@@ -5558,8 +5556,8 @@ class Checksum(Construct):
         if hash1 != hash2:
             raise ChecksumError(
                 "wrong checksum, read %r, computed %r" % (
-                    hash1 if not isinstance(hash1,bytestringtype) else binascii.hexlify(hash1),
-                    hash2 if not isinstance(hash2,bytestringtype) else binascii.hexlify(hash2), ),
+                    hash1 if not isinstance(hash1, bytes) else binascii.hexlify(hash1),
+                    hash2 if not isinstance(hash2, bytes) else binascii.hexlify(hash2), ),
                 path=path
             )
         return hash1
@@ -5930,7 +5928,7 @@ class LazyContainer(dict):
         raise AttributeError
 
     def __getitem__(self, index):
-        if isinstance(index, stringtypes):
+        if isinstance(index, str):
             index = self._struct._subconsindexes[index] # KeyError
         if index in self._values:
             return self._values[index]

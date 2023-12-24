@@ -213,7 +213,7 @@ Top-most structures should have elaborate descriptions, documenting who made the
 
     """
     Full docstring with autor, email, links to RFC-alike pages.
-    """ *
+    """ * \
     Struct(
         "title" / CString("utf8"),
         Padding(2) * "reserved, see 8.1",

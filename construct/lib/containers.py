@@ -56,6 +56,31 @@ def recursion_lock(retval="<recursion detected>", lock_name="__recursion_lock__"
     return decorator
 
 
+def value_to_string(value):
+    if value.__class__.__name__ == "EnumInteger":
+        return "(enum) (unknown) %s" % (value, )
+
+    if value.__class__.__name__ == "EnumIntegerString":
+        return "(enum) %s %s" % (value, value.intvalue, )
+
+    if value.__class__.__name__ in ["HexDisplayedBytes", "HexDumpDisplayedBytes"]:
+        return str(value)
+
+    if isinstance(value, bytes):
+        printingcap = 16
+        if len(value) <= printingcap or globalPrintFullStrings:
+            return "%s (total %d)" % (repr(value), len(value))
+        return "%s... (truncated, total %d)" % (repr(value[:printingcap]), len(value))
+
+    if isinstance(value, str):
+        printingcap = 32
+        if len(value) <= printingcap or globalPrintFullStrings:
+            return "%s (total %d)" % (repr(value), len(value))
+        return "%s... (truncated, total %d)" % (repr(value[:printingcap]), len(value))
+
+    return str(value)
+
+
 class Container(dict):
     # NOTE: be careful when working with these objects. Any method can be shadowed, so instead of doing `self.items()` you should do `dict.items(self)`. Operation that use methods implicitly (such as `x in self` or `self[k]`) will work as usual.
     r"""
@@ -143,27 +168,7 @@ class Container(dict):
                 continue
             if isflags and not v and not globalPrintFalseFlags:
                 continue
-            text.extend([indentation, str(k), " = "])
-            if v.__class__.__name__ == "EnumInteger":
-                text.append("(enum) (unknown) %s" % (v, ))
-            elif v.__class__.__name__ == "EnumIntegerString":
-                text.append("(enum) %s %s" % (v, v.intvalue, ))
-            elif v.__class__.__name__ in ["HexDisplayedBytes", "HexDumpDisplayedBytes"]:
-                text.append(indentation.join(str(v).split("\n")))
-            elif isinstance(v, bytes):
-                printingcap = 16
-                if len(v) <= printingcap or globalPrintFullStrings:
-                    text.append("%s (total %d)" % (repr(v), len(v)))
-                else:
-                    text.append("%s... (truncated, total %d)" % (repr(v[:printingcap]), len(v)))
-            elif isinstance(v, str):
-                printingcap = 32
-                if len(v) <= printingcap or globalPrintFullStrings:
-                    text.append("%s (total %d)" % (repr(v), len(v)))
-                else:
-                    text.append("%s... (truncated, total %d)" % (repr(v[:printingcap]), len(v)))
-            else:
-                text.append(indentation.join(str(v).split("\n")))
+            text.extend([indentation, str(k), " = ", indentation.join(value_to_string(v).split("\n"))])
         return "".join(text)
 
     def _search(self, compiled_pattern, search_all, /):
@@ -249,7 +254,7 @@ class ListContainer(list):
         text = ["ListContainer: "]
         for k in self:
             text.append(indentation)
-            lines = str(k).split("\n")
+            lines = value_to_string(k).split("\n")
             text.append(indentation.join(lines))
         return "".join(text)
 
